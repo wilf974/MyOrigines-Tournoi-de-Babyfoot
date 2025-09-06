@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import './styles.css';
+import { AuthProvider } from './contexts/AuthContext';
+import { TournamentProvider } from './contexts/TournamentContext';
+import AdminView from './components/AdminView';
+import TeamManagement from './components/TeamManagement';
+import MatchManagement from './components/MatchManagement';
 
 /**
  * Composant principal de l'application MyOrigines Tournoi
@@ -37,6 +42,7 @@ function App() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [autoNextDayMessage, setAutoNextDayMessage] = useState('');
+  const [adminActiveTab, setAdminActiveTab] = useState('matches');
 
   // Charger les données au démarrage
   useEffect(() => {
@@ -143,7 +149,7 @@ function App() {
       
       // Récupérer tous les matchs de tous les jours
       const allMatches = [];
-      const days = ['lundi', 'mardi', 'mercredi', 'jeudi'];
+      const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
       
       for (const day of days) {
         const response = await fetch(`/api/matches/${day}`, {
@@ -227,7 +233,7 @@ function App() {
     
     // Trier les matchs par jour et heure
     const sortedMatches = [...matches].sort((a, b) => {
-      const dayOrder = ['lundi', 'mardi', 'mercredi', 'jeudi'];
+      const dayOrder = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
       const dayDiff = dayOrder.indexOf(a.jour) - dayOrder.indexOf(b.jour);
       if (dayDiff !== 0) return dayDiff;
       return a.heure.localeCompare(b.heure);
@@ -248,7 +254,7 @@ function App() {
     const finishedMatches = matches
       .filter(match => match.finished)
       .sort((a, b) => {
-        const dayOrder = ['lundi', 'mardi', 'mercredi', 'jeudi'];
+        const dayOrder = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
         const dayDiff = dayOrder.indexOf(a.jour) - dayOrder.indexOf(b.jour);
         if (dayDiff !== 0) return dayDiff;
         return a.heure.localeCompare(b.heure);
@@ -705,7 +711,31 @@ function App() {
             <div className="live-dot"></div>
           </div>
 
-          <div className="admin-grid">
+          {/* Onglets de navigation admin */}
+          <div className="admin-tabs mb-3">
+            <button 
+              className={`admin-tab ${adminActiveTab === 'matches' ? 'active' : ''}`}
+              onClick={() => setAdminActiveTab('matches')}
+            >
+              Gestion des Matchs
+            </button>
+            <button 
+              className={`admin-tab ${adminActiveTab === 'match-management' ? 'active' : ''}`}
+              onClick={() => setAdminActiveTab('match-management')}
+            >
+              Organisation des Matchs
+            </button>
+            <button 
+              className={`admin-tab ${adminActiveTab === 'teams' ? 'active' : ''}`}
+              onClick={() => setAdminActiveTab('teams')}
+            >
+              Gestion des Équipes
+            </button>
+          </div>
+
+          {/* Contenu des onglets */}
+          {adminActiveTab === 'matches' && (
+            <div className="admin-grid">
             {/* Planning des Matchs */}
             <div className="card">
               <div className="card-header">
@@ -713,7 +743,7 @@ function App() {
               </div>
               
               <div className="day-tabs">
-                {['lundi', 'mardi', 'mercredi', 'jeudi'].map(day => (
+                {['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'].map(day => (
                   <button
                     key={day}
                     className={`day-tab ${currentDay === day ? 'active' : ''}`}
@@ -968,6 +998,29 @@ function App() {
               </div>
             </div>
           </div>
+          )}
+
+          {/* Onglet Organisation des Matchs */}
+          {adminActiveTab === 'match-management' && (
+            <div className="match-management-section">
+              <AuthProvider>
+                <TournamentProvider>
+                  <MatchManagement />
+                </TournamentProvider>
+              </AuthProvider>
+            </div>
+          )}
+
+          {/* Onglet Gestion des Équipes */}
+          {adminActiveTab === 'teams' && (
+            <div className="teams-management-section">
+              <AuthProvider>
+                <TournamentProvider>
+                  <TeamManagement />
+                </TournamentProvider>
+              </AuthProvider>
+            </div>
+          )}
         </div>
       )}
 

@@ -4,6 +4,8 @@ import { useTournament } from '../contexts/TournamentContext';
 import MatchList from './MatchList';
 import ScoreControls from './ScoreControls';
 import Rankings from './Rankings';
+import TeamManagement from './TeamManagement';
+import MatchManagement from './MatchManagement';
 
 /**
  * Composant de la vue admin
@@ -25,6 +27,7 @@ function AdminView({ onBack }) {
   
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [activeTab, setActiveTab] = useState('matches');
 
   /**
    * Met à jour le temps de dernière synchronisation
@@ -144,53 +147,90 @@ function AdminView({ onBack }) {
 
       <div className="admin-content">
         <div className="container">
-          <div className="admin-grid">
-            {/* Planning des matchs */}
-            <div className="schedule-section">
-              <h2>Planning des Matchs</h2>
-              <div className="day-tabs">
-                {['lundi', 'mardi', 'mercredi', 'jeudi'].map(day => (
-                  <button
-                    key={day}
-                    className={`day-tab ${currentDay === day ? 'active' : ''}`}
-                    onClick={() => changeDay(day)}
-                  >
-                    {day.charAt(0).toUpperCase() + day.slice(1)}
-                  </button>
-                ))}
-              </div>
-              <MatchList
-                matches={currentMatches}
-                selectedMatch={selectedMatch}
-                onMatchSelect={handleMatchSelect}
-                loading={loading}
-              />
-            </div>
+          {/* Onglets de navigation */}
+          <div className="admin-tabs">
+            <button 
+              className={`admin-tab ${activeTab === 'matches' ? 'active' : ''}`}
+              onClick={() => setActiveTab('matches')}
+            >
+              Gestion des Matchs
+            </button>
+            <button 
+              className={`admin-tab ${activeTab === 'match-management' ? 'active' : ''}`}
+              onClick={() => setActiveTab('match-management')}
+            >
+              Organisation des Matchs
+            </button>
+            <button 
+              className={`admin-tab ${activeTab === 'teams' ? 'active' : ''}`}
+              onClick={() => setActiveTab('teams')}
+            >
+              Gestion des Équipes
+            </button>
+          </div>
 
-            {/* Gestion des scores */}
-            <div className="scoring-section">
-              <h2>Gestion des Scores</h2>
-              {selectedMatch ? (
-                <ScoreControls
-                  match={selectedMatch}
-                  onScoreUpdate={handleScoreUpdate}
-                  onMatchReset={handleMatchReset}
-                  onMatchSave={handleMatchSave}
+          {/* Contenu des onglets */}
+          {activeTab === 'matches' && (
+            <div className="admin-grid">
+              {/* Planning des matchs */}
+              <div className="schedule-section">
+                <h2>Planning des Matchs</h2>
+                <div className="day-tabs">
+                  {['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'].map(day => (
+                    <button
+                      key={day}
+                      className={`day-tab ${currentDay === day ? 'active' : ''}`}
+                      onClick={() => changeDay(day)}
+                    >
+                      {day.charAt(0).toUpperCase() + day.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <MatchList
+                  matches={currentMatches}
+                  selectedMatch={selectedMatch}
+                  onMatchSelect={handleMatchSelect}
                   loading={loading}
                 />
-              ) : (
-                <div id="no-match" className="no-match">
-                  <p>Sélectionnez un match dans le planning pour commencer la saisie des scores.</p>
-                </div>
-              )}
-            </div>
+              </div>
 
-            {/* Classement temps réel */}
-            <div className="rankings-section">
-              <h2>Classement Temps Réel</h2>
-              <Rankings rankings={rankings} loading={loading} />
+              {/* Gestion des scores */}
+              <div className="scoring-section">
+                <h2>Gestion des Scores</h2>
+                {selectedMatch ? (
+                  <ScoreControls
+                    match={selectedMatch}
+                    onScoreUpdate={handleScoreUpdate}
+                    onMatchReset={handleMatchReset}
+                    onMatchSave={handleMatchSave}
+                    loading={loading}
+                  />
+                ) : (
+                  <div id="no-match" className="no-match">
+                    <p>Sélectionnez un match dans le planning pour commencer la saisie des scores.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Classement temps réel */}
+              <div className="rankings-section">
+                <h2>Classement Temps Réel</h2>
+                <Rankings rankings={rankings} loading={loading} />
+              </div>
             </div>
-          </div>
+          )}
+
+          {activeTab === 'match-management' && (
+            <div className="match-management-section">
+              <MatchManagement />
+            </div>
+          )}
+
+          {activeTab === 'teams' && (
+            <div className="teams-management-section">
+              <TeamManagement />
+            </div>
+          )}
         </div>
       </div>
     </div>

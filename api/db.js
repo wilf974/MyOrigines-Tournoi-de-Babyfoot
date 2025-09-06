@@ -102,6 +102,8 @@ async function initializeDefaultData(db) {
   const teamCount = db.prepare('SELECT COUNT(*) as count FROM teams').get();
   
   if (teamCount.count === 0) {
+    console.log('📝 Création des équipes par défaut...');
+    
     // Insérer les équipes par défaut
     const teams = [
       { id: "A", nom: "Équipe A", joueurs: JSON.stringify(["Mercier Vincent", "Rossini Laora"]) },
@@ -123,34 +125,8 @@ async function initializeDefaultData(db) {
       insertTeam.run(team.id, team.nom, team.joueurs);
     });
 
-    // Insérer les matchs par défaut
-    const matches = [
-      // Lundi
-      { id: "lundi-1", jour: "lundi", heure: "12:00", equipe1_id: "A", equipe2_id: "B" },
-      { id: "lundi-2", jour: "lundi", heure: "13:00", equipe1_id: "C", equipe2_id: "D" },
-      { id: "lundi-3", jour: "lundi", heure: "13:30", equipe1_id: "E", equipe2_id: "F" },
-      // Mardi
-      { id: "mardi-1", jour: "mardi", heure: "12:00", equipe1_id: "A", equipe2_id: "C" },
-      { id: "mardi-2", jour: "mardi", heure: "13:00", equipe1_id: "B", equipe2_id: "D" },
-      { id: "mardi-3", jour: "mardi", heure: "13:30", equipe1_id: "G", equipe2_id: "H" },
-      // Mercredi
-      { id: "mercredi-1", jour: "mercredi", heure: "12:00", equipe1_id: "A", equipe2_id: "E" },
-      { id: "mercredi-2", jour: "mercredi", heure: "13:00", equipe1_id: "B", equipe2_id: "F" },
-      { id: "mercredi-3", jour: "mercredi", heure: "13:30", equipe1_id: "C", equipe2_id: "G" },
-      // Jeudi
-      { id: "jeudi-1", jour: "jeudi", heure: "12:00", equipe1_id: "D", equipe2_id: "H" },
-      { id: "jeudi-2", jour: "jeudi", heure: "13:00", equipe1_id: "E", equipe2_id: "G" },
-      { id: "jeudi-3", jour: "jeudi", heure: "13:30", equipe1_id: "F", equipe2_id: "H" }
-    ];
-
-    const insertMatch = db.prepare(`
-      INSERT INTO matches (id, jour, heure, equipe1_id, equipe2_id) 
-      VALUES (?, ?, ?, ?, ?)
-    `);
-
-    matches.forEach(match => {
-      insertMatch.run(match.id, match.jour, match.heure, match.equipe1_id, match.equipe2_id);
-    });
+    console.log('✅ Équipes par défaut créées (sans matchs automatiques)');
+    console.log('ℹ️  Les matchs peuvent être générés manuellement via l\'interface admin');
   }
 
   // Vérifier si un admin existe déjà

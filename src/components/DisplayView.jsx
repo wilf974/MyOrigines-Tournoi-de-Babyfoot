@@ -95,7 +95,7 @@ function DisplayView({ onBack }) {
             <div className="current-matches-section">
               <h2>Matchs du Jour</h2>
               <div className="day-selector">
-                {['lundi', 'mardi', 'mercredi', 'jeudi'].map(day => (
+                {['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'].map(day => (
                   <button
                     key={day}
                     className={`day-tab ${currentDay === day ? 'active' : ''}`}

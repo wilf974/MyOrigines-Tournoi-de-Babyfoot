@@ -6,7 +6,7 @@ const { Pool } = pkg;
  */
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
+  port: process.env.DB_PORT || 2003, // Port Docker PostgreSQL
   database: process.env.DB_NAME || 'tournoi_babyfoot',
   user: process.env.DB_USER || 'myorigines',
   password: process.env.DB_PASSWORD || 'tournoi2024',
@@ -125,6 +125,8 @@ async function initializeDefaultData(client) {
   const teamCount = await client.query('SELECT COUNT(*) as count FROM teams');
   
   if (parseInt(teamCount.rows[0].count) === 0) {
+    console.log('📝 Création des équipes par défaut...');
+    
     // Insérer les équipes par défaut
     const teams = [
       { id: "A", nom: "Équipe A", joueurs: ["Mercier Vincent", "Rossini Laora"] },
@@ -144,32 +146,8 @@ async function initializeDefaultData(client) {
       `, [team.id, team.nom, JSON.stringify(team.joueurs)]);
     }
 
-    // Insérer les matchs par défaut
-    const matches = [
-      // Lundi
-      { id: "lundi-1", jour: "lundi", heure: "12:00", equipe1_id: "A", equipe2_id: "B" },
-      { id: "lundi-2", jour: "lundi", heure: "13:00", equipe1_id: "C", equipe2_id: "D" },
-      { id: "lundi-3", jour: "lundi", heure: "13:30", equipe1_id: "E", equipe2_id: "F" },
-      // Mardi
-      { id: "mardi-1", jour: "mardi", heure: "12:00", equipe1_id: "A", equipe2_id: "C" },
-      { id: "mardi-2", jour: "mardi", heure: "13:00", equipe1_id: "B", equipe2_id: "D" },
-      { id: "mardi-3", jour: "mardi", heure: "13:30", equipe1_id: "G", equipe2_id: "H" },
-      // Mercredi
-      { id: "mercredi-1", jour: "mercredi", heure: "12:00", equipe1_id: "A", equipe2_id: "E" },
-      { id: "mercredi-2", jour: "mercredi", heure: "13:00", equipe1_id: "B", equipe2_id: "F" },
-      { id: "mercredi-3", jour: "mercredi", heure: "13:30", equipe1_id: "C", equipe2_id: "G" },
-      // Jeudi
-      { id: "jeudi-1", jour: "jeudi", heure: "12:00", equipe1_id: "D", equipe2_id: "H" },
-      { id: "jeudi-2", jour: "jeudi", heure: "13:00", equipe1_id: "E", equipe2_id: "G" },
-      { id: "jeudi-3", jour: "jeudi", heure: "13:30", equipe1_id: "F", equipe2_id: "H" }
-    ];
-
-    for (const match of matches) {
-      await client.query(`
-        INSERT INTO matches (id, jour, heure, equipe1_id, equipe2_id) 
-        VALUES ($1, $2, $3, $4, $5)
-      `, [match.id, match.jour, match.heure, match.equipe1_id, match.equipe2_id]);
-    }
+    console.log('✅ Équipes par défaut créées (sans matchs automatiques)');
+    console.log('ℹ️  Les matchs peuvent être générés manuellement via l\'interface admin');
   }
 
   // Vérifier si un admin existe déjà

@@ -89,6 +89,126 @@ app.get('/api/teams', async (req, res) => {
   }
 });
 
+// Route pour créer une nouvelle équipe
+app.post('/api/teams', async (req, res) => {
+  try {
+    const { nom, joueurs } = req.body;
+
+    if (!nom || !joueurs || !Array.isArray(joueurs) || joueurs.length === 0) {
+      return res.status(400).json({ error: 'Nom et joueurs requis' });
+    }
+
+    const db = await getDatabase();
+    
+    // Générer un ID unique
+    const existingIds = db.prepare('SELECT id FROM teams').all().map(row => row.id);
+    let id = 'A';
+    for (let i = 65; i <= 90; i++) {
+      const letter = String.fromCharCode(i);
+      if (!existingIds.includes(letter)) {
+        id = letter;
+        break;
+      }
+    }
+    
+    const insertTeam = db.prepare(`
+      INSERT INTO teams (id, nom, joueurs, points, buts, gamelles)
+      VALUES (?, ?, ?, 0, 0, 0)
+    `);
+
+    insertTeam.run(id, nom, JSON.stringify(joueurs));
+    
+    res.status(201).json({ 
+      id, 
+      nom, 
+      joueurs, 
+      points: 0, 
+      buts: 0, 
+      gamelles: 0,
+      message: 'Équipe créée avec succès' 
+    });
+  } catch (error) {
+    console.error('Erreur création équipe:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Route pour mettre à jour une équipe
+app.put('/api/teams', async (req, res) => {
+  try {
+    const { id, nom, joueurs } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID de l\'équipe requis' });
+    }
+
+    if (!nom || !joueurs || !Array.isArray(joueurs) || joueurs.length === 0) {
+      return res.status(400).json({ error: 'Nom et joueurs requis' });
+    }
+
+    const db = await getDatabase();
+
+    const updateTeam = db.prepare(`
+      UPDATE teams 
+      SET nom = ?, joueurs = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+
+    const result = updateTeam.run(nom, JSON.stringify(joueurs), id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Équipe non trouvée' });
+    }
+
+    res.status(200).json({ 
+      id, 
+      nom, 
+      joueurs, 
+      message: 'Équipe mise à jour avec succès' 
+    });
+  } catch (error) {
+    console.error('Erreur mise à jour équipe:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+// Route pour supprimer une équipe
+app.delete('/api/teams', async (req, res) => {
+  try {
+    const { id } = req.query;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID de l\'équipe requis' });
+    }
+
+    const db = await getDatabase();
+
+    // Vérifier si l'équipe a des matchs
+    const matchCheck = db.prepare(`
+      SELECT COUNT(*) as count FROM matches 
+      WHERE equipe1_id = ? OR equipe2_id = ?
+    `).get(id, id);
+
+    if (matchCheck.count > 0) {
+      return res.status(400).json({ 
+        error: 'Impossible de supprimer une équipe qui a des matchs' 
+      });
+    }
+
+    const deleteTeam = db.prepare('DELETE FROM teams WHERE id = ?');
+    const result = deleteTeam.run(id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Équipe non trouvée' });
+    }
+
+    res.status(200).json({ message: 'Équipe supprimée avec succès' });
+  } catch (error) {
+    console.error('Erreur suppression équipe:', error);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // Route pour obtenir les matchs par jour
 app.get('/api/matches/:day', async (req, res) => {
   try {
