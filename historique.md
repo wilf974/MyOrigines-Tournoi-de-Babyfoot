@@ -2798,6 +2798,34 @@ L'interface est maintenant parfaitement responsive et optimisée pour tous les a
 
 L'en-tête est maintenant épuré et se concentre sur l'essentiel ! ✨
 
+## 2024-12-19 - Suppression de l'affichage du mot de passe par défaut
+
+### Demande utilisateur
+
+- **Demande** : "enlève aussi l'affichage du mote de passe par défaut"
+- **Objectif** : Sécuriser l'interface en supprimant l'affichage du mot de passe par défaut
+
+### Modifications apportées
+
+#### 1. Suppression de l'indication du mot de passe
+- **Fichier modifié** : `src/App.jsx`
+- **Suppression** : Texte "Mot de passe par défaut : 123456"
+- **Localisation** : Modal de connexion admin
+- **Raison** : Sécurité - ne pas exposer le mot de passe par défaut
+
+#### 2. Interface de connexion sécurisée
+- **Avant** : Affichage du mot de passe par défaut en bas de la modal
+- **Après** : Interface épurée sans indication du mot de passe
+- **Sécurité** : Le mot de passe doit être connu par l'administrateur
+
+### Impact de la modification
+
+- **Sécurité améliorée** : Plus d'exposition du mot de passe par défaut
+- **Interface épurée** : Modal de connexion plus propre
+- **Professionnalisme** : Interface plus sécurisée et professionnelle
+
+La sécurité de l'interface admin est maintenant renforcée ! 🔒
+
 ## 2024-12-19 - Correction du bug de passage automatique incorrect
 
 ### Problème identifié

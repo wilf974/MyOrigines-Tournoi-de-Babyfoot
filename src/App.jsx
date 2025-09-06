@@ -1225,11 +1225,6 @@ function App() {
               </button>
             </div>
             
-            <div className="text-center mt-3">
-              <small className="text-muted">
-                Mot de passe par défaut : <strong>123456</strong>
-              </small>
-            </div>
           </div>
         </div>
       )}
