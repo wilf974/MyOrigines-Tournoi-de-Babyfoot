@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Tournoi</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Test API Tournoi MyOrigines</h1>
+    
+    <button onclick="testHealth()">Test Health</button>
+    <button onclick="testTeams()">Test Teams</button>
+    <button onclick="testLogin()">Test Login</button>
+    <button onclick="testMatches()">Test Matches</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://localhost:2001/api';
+        
+        function addResult(title, data, isError = false) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${isError ? 'error' : 'success'}`;
+            div.innerHTML = `<h3>${title}</h3><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            results.appendChild(div);
+        }
+        
+        async function testHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                addResult('Health Check', data);
+            } catch (error) {
+                addResult('Health Check - ERREUR', error.message, true);
+            }
+        }
+        
+        async function testTeams() {
+            try {
+                const response = await fetch(`${API_BASE}/teams`);
+                const data = await response.json();
+                addResult('Teams', data);
+            } catch (error) {
+                addResult('Teams - ERREUR', error.message, true);
+            }
+        }
+        
+        async function testLogin() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: '123456'
+                    })
+                });
+                const data = await response.json();
+                addResult('Login', data);
+            } catch (error) {
+                addResult('Login - ERREUR', error.message, true);
+            }
+        }
+        
+        async function testMatches() {
+            try {
+                const response = await fetch(`${API_BASE}/matches/lundi`);
+                const data = await response.json();
+                addResult('Matches Lundi', data);
+            } catch (error) {
+                addResult('Matches - ERREUR', error.message, true);
+            }
+        }
+    </script>
+</body>
+</html>

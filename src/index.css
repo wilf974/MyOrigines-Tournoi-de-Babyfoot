@@ -1,0 +1,200 @@
+/* Import du CSS existant */
+@import './styles.css';
+
+/* Styles spécifiques React */
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Améliorations pour React */
+.react-component {
+  transition: all 0.3s ease;
+}
+
+/* Animations pour les mises à jour */
+.score-update {
+  animation: scoreFlash 0.5s ease-in-out;
+}
+
+@keyframes scoreFlash {
+  0% { background-color: #22C55E; }
+  100% { background-color: transparent; }
+}
+
+/* Loading states */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #D4A574;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Modal styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-16);
+}
+
+.modal-content {
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-width: 400px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-20);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h2 {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: var(--font-size-2xl);
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  padding: var(--space-4);
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--color-text);
+}
+
+.login-form {
+  padding: var(--space-20);
+}
+
+.error-message {
+  background-color: rgba(var(--color-error-rgb), 0.1);
+  color: var(--color-error);
+  padding: var(--space-12);
+  border-radius: var(--radius-base);
+  margin-bottom: var(--space-16);
+  font-size: var(--font-size-sm);
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--space-12);
+  justify-content: flex-end;
+  margin-top: var(--space-20);
+}
+
+.login-hint {
+  padding: var(--space-16) var(--space-20);
+  background-color: var(--color-secondary);
+  border-top: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.login-hint small {
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.login-hint code {
+  background-color: var(--color-surface);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+}
+
+/* Loading states */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-32);
+  color: var(--color-text-secondary);
+}
+
+.loading-container .loading {
+  margin-bottom: var(--space-16);
+}
+
+/* No data states */
+.no-matches,
+.no-rankings {
+  text-align: center;
+  padding: var(--space-32);
+  color: var(--color-text-secondary);
+  background-color: var(--color-secondary);
+  border-radius: var(--radius-base);
+}
+
+/* User info in header */
+.user-info {
+  font-size: var(--font-size-sm);
+  color: var(--color-slate-900);
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: var(--space-6) var(--space-12);
+  border-radius: var(--radius-base);
+}
+
+/* Display controls */
+.display-controls {
+  display: flex;
+  gap: var(--space-12);
+  align-items: center;
+}
+
+.day-selector {
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-16);
+  background-color: #F5F1ED;
+  padding: var(--space-4);
+  border-radius: var(--radius-base);
+}
+
+/* Match details for display mode */
+.match-details {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--space-8);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  padding-top: var(--space-8);
+  border-top: 1px solid rgba(212, 165, 116, 0.3);
+}

@@ -1,0 +1,46 @@
+{
+  "name": "tournoi-babyfoot-myorigines",
+  "version": "1.0.0",
+  "description": "Application de gestion de tournoi de babyfoot en temps réel pour MyOrigines",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:vite": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server.js",
+    "docker:build": "docker-compose build",
+    "docker:start": "docker-compose up -d",
+    "docker:stop": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:restart": "docker-compose restart"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "pg": "^8.11.3",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "tournoi",
+    "babyfoot",
+    "sport",
+    "temps-reel",
+    "myorigines",
+    "react"
+  ],
+  "author": "MyOrigines",
+  "license": "MIT"
+}

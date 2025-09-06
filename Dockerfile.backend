@@ -1,0 +1,29 @@
+# Dockerfile pour le backend Express.js
+FROM node:18-alpine
+
+# Installer les dépendances système pour PostgreSQL
+RUN apk add --no-cache python3 make g++
+
+# Définir le répertoire de travail
+WORKDIR /app
+
+# Copier les fichiers de dépendances
+COPY package*.json ./
+
+# Installer les dépendances
+RUN npm ci --only=production
+
+# Copier le code source
+COPY server.js ./
+COPY server-postgres.js ./
+COPY api/ ./api/
+
+# Exposer le port
+EXPOSE 2001
+
+# Variables d'environnement
+ENV NODE_ENV=production
+ENV PORT=2001
+
+# Commande de démarrage
+CMD ["node", "server-postgres.js"]

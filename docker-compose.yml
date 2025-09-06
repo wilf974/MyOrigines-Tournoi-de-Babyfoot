@@ -1,0 +1,71 @@
+services:
+  # Base de données PostgreSQL
+  database:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: tournoi_babyfoot
+      POSTGRES_USER: myorigines
+      POSTGRES_PASSWORD: tournoi2024
+    ports:
+      - "0.0.0.0:2003:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tournoi-network
+    restart: unless-stopped
+
+  # Backend Express.js
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "0.0.0.0:2001:2001"
+    environment:
+      - NODE_ENV=production
+      - PORT=2001
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_NAME=tournoi_babyfoot
+      - DB_USER=myorigines
+      - DB_PASSWORD=tournoi2024
+    depends_on:
+      - database
+    networks:
+      - tournoi-network
+    restart: unless-stopped
+
+  # Frontend React avec Nginx
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "0.0.0.0:2000:2000"
+    depends_on:
+      - backend
+    networks:
+      - tournoi-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy (optionnel)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "0.0.0.0:2002:80"
+    volumes:
+      - ./nginx-proxy.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - tournoi-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  tournoi-network:
+    driver: bridge
