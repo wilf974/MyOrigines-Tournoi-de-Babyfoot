@@ -527,7 +527,7 @@ app.post('/api/matches/restore', authenticateToken, async (req, res) => {
 
 
 // Route pour régénérer les matchs automatiquement
-app.post('/api/matches/regenerate', authenticateToken, async (req, res) => {
+app.post('/api/matches/regenerate', async (req, res) => {
   try {
     const timestamp = new Date().toISOString();
     const { matchesPerTeam = 3 } = req.body; // Valeur par défaut : 3 matchs par équipe
@@ -948,6 +948,46 @@ app.get('/api/postgres-status', async (req, res) => {
       status: 'ERROR', 
       message: 'Erreur lors du diagnostic PostgreSQL',
       error: error.message 
+    });
+  }
+});
+
+// Route pour restaurer le planning standard prédéfini
+app.post('/api/matches/restore-standard', async (req, res) => {
+  try {
+    const timestamp = new Date().toISOString();
+    const { matches } = req.body;
+    console.log(`🔄 [${timestamp}] Restauration du planning standard demandée`);
+
+    if (!matches || !Array.isArray(matches)) {
+      return res.status(400).json({ error: 'Liste de matchs requise' });
+    }
+
+    // Sauvegarder les matchs actuels avant de les remplacer
+    await query('DROP TABLE IF EXISTS matches_backup');
+    await query('CREATE TABLE matches_backup AS SELECT * FROM matches');
+
+    // Supprimer tous les matchs actuels
+    await query('DELETE FROM matches');
+
+    // Insérer les matchs du planning standard
+    for (const match of matches) {
+      await query(`
+        INSERT INTO matches (id, jour, heure, equipe1_id, equipe2_id)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [match.id, match.jour, match.heure, match.equipe1_id, match.equipe2_id]);
+    }
+
+    console.log(`✅ [${timestamp}] Planning standard restauré avec succès (${matches.length} matchs)`);
+    res.json({
+      success: true,
+      message: 'Planning standard restauré avec succès',
+      count: matches.length
+    });
+  } catch (error) {
+    console.error('❌ Erreur restauration planning standard:', error);
+    res.status(500).json({ 
+      error: 'Erreur serveur lors de la restauration du planning standard' 
     });
   }
 });

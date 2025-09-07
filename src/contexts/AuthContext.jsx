@@ -13,15 +13,13 @@ export function AuthProvider({ children }) {
 
   /**
    * Vérifie si l'utilisateur est connecté au chargement
+   * FORCE LA DEMANDE DE MOT DE PASSE À CHAQUE FOIS
    */
   useEffect(() => {
-    const savedToken = localStorage.getItem('tournoi_token');
-    const savedUser = localStorage.getItem('tournoi_user');
-    
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
-    }
+    // Nettoyer le localStorage pour forcer la reconnexion
+    localStorage.removeItem('tournoi_token');
+    localStorage.removeItem('tournoi_user');
+    console.log('🔐 Authentification forcée - mot de passe requis');
     setLoading(false);
   }, []);
 
@@ -84,6 +82,35 @@ export function AuthProvider({ children }) {
    * @returns {Object} - Headers avec token
    */
   const getAuthHeaders = () => {
+    if (!token) {
+      console.log('🔐 Aucun token disponible');
+      return {
+        'Content-Type': 'application/json',
+      };
+    }
+
+    // Vérifier si le token est encore valide
+    try {
+      const tokenData = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+      
+      if (tokenData.exp && tokenData.exp <= currentTime) {
+        // Token expiré, déconnecter l'utilisateur
+        console.log('🔐 Token expiré lors de la requête, déconnexion automatique');
+        logout();
+        return {
+          'Content-Type': 'application/json',
+        };
+      }
+    } catch (error) {
+      // Token invalide, déconnecter l'utilisateur
+      console.log('🔐 Token invalide lors de la requête, déconnexion automatique');
+      logout();
+      return {
+        'Content-Type': 'application/json',
+      };
+    }
+
     return {
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',

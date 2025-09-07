@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { useTournament } from '../contexts/TournamentContext';
 
 /**
@@ -7,7 +6,6 @@ import { useTournament } from '../contexts/TournamentContext';
  * Permet de sauvegarder, restaurer et régénérer les matchs
  */
 function MatchManagement() {
-  const { getAuthHeaders } = useAuth();
   const { refreshData } = useTournament();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -28,61 +26,54 @@ function MatchManagement() {
     }, 5000);
   };
 
-  /**
-   * Sauvegarde les matchs actuels
-   */
-  const handleBackupMatches = async () => {
-    if (!confirm('Voulez-vous sauvegarder les matchs actuels ?')) {
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch('/api/matches/backup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        }
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        showMessage(`✅ ${data.message} (${data.count} matchs sauvegardés)`, 'success');
-      } else {
-        showMessage(`❌ Erreur: ${data.error}`, 'error');
-      }
-    } catch (error) {
-      console.error('Erreur sauvegarde:', error);
-      showMessage('❌ Erreur de connexion lors de la sauvegarde', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   /**
-   * Restaure les matchs sauvegardés
+   * Restaure le planning standard prédéfini
    */
   const handleRestoreMatches = async () => {
-    if (!confirm('Voulez-vous restaurer les matchs sauvegardés ? Cela remplacera les matchs actuels.')) {
+    if (!confirm('Voulez-vous restaurer le planning standard ? Cela remplacera les matchs actuels.')) {
       return;
     }
 
     setLoading(true);
     try {
-      const response = await fetch('/api/matches/restore', {
+      // Planning standard basé sur l'image fournie
+      const standardMatches = [
+        // Lundi
+        { id: 'lundi-1', jour: 'lundi', heure: '12:00', equipe1_id: 'A', equipe2_id: 'B' },
+        { id: 'lundi-2', jour: 'lundi', heure: '13:00', equipe1_id: 'C', equipe2_id: 'D' },
+        { id: 'lundi-3', jour: 'lundi', heure: '13:30', equipe1_id: 'E', equipe2_id: 'F' },
+        
+        // Mardi
+        { id: 'mardi-1', jour: 'mardi', heure: '12:00', equipe1_id: 'A', equipe2_id: 'C' },
+        { id: 'mardi-2', jour: 'mardi', heure: '13:00', equipe1_id: 'B', equipe2_id: 'D' },
+        { id: 'mardi-3', jour: 'mardi', heure: '13:30', equipe1_id: 'G', equipe2_id: 'H' },
+        
+        // Mercredi
+        { id: 'mercredi-1', jour: 'mercredi', heure: '12:00', equipe1_id: 'A', equipe2_id: 'E' },
+        { id: 'mercredi-2', jour: 'mercredi', heure: '13:00', equipe1_id: 'B', equipe2_id: 'F' },
+        { id: 'mercredi-3', jour: 'mercredi', heure: '13:30', equipe1_id: 'C', equipe2_id: 'G' },
+        
+        // Jeudi
+        { id: 'jeudi-1', jour: 'jeudi', heure: '12:00', equipe1_id: 'D', equipe2_id: 'H' },
+        { id: 'jeudi-2', jour: 'jeudi', heure: '13:00', equipe1_id: 'E', equipe2_id: 'G' },
+        { id: 'jeudi-3', jour: 'jeudi', heure: '13:30', equipe1_id: 'F', equipe2_id: 'H' }
+      ];
+
+      const response = await fetch('/api/matches/restore-standard', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        }
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          matches: standardMatches
+        })
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        showMessage(`✅ ${data.message} (${data.count} matchs restaurés)`, 'success');
+        showMessage(`✅ Planning standard restauré avec succès (${data.count} matchs)`, 'success');
         await refreshData(); // Rafraîchir les données
       } else {
         showMessage(`❌ Erreur: ${data.error}`, 'error');
@@ -108,8 +99,7 @@ function MatchManagement() {
       const response = await fetch('/api/matches/regenerate', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           matchesPerTeam: matchesPerTeam
@@ -150,25 +140,18 @@ function MatchManagement() {
       {/* Actions de gestion des matchs */}
       <div className="match-actions">
         <div className="action-group">
-          <h3>Sauvegarde & Restauration</h3>
+          <h3>Restauration du Planning Standard</h3>
           <div className="action-buttons">
-            <button 
-              className="btn btn--primary"
-              onClick={handleBackupMatches}
-              disabled={loading}
-            >
-              {loading ? 'Sauvegarde...' : '💾 Sauvegarder les Matchs'}
-            </button>
             <button 
               className="btn btn--secondary"
               onClick={handleRestoreMatches}
               disabled={loading}
             >
-              {loading ? 'Restauration...' : '🔄 Restaurer les Matchs'}
+              {loading ? 'Restauration...' : '🔄 Restaurer le Planning Standard'}
             </button>
           </div>
           <p className="action-description">
-            Sauvegardez les matchs actuels ou restaurez une sauvegarde précédente.
+            Restaure le planning standard avec 12 matchs répartis sur 4 jours (Lundi-Jeudi).
           </p>
         </div>
 

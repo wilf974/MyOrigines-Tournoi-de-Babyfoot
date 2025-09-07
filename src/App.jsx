@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import './styles.css';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { TournamentProvider } from './contexts/TournamentContext';
 import AdminView from './components/AdminView';
 import TeamManagement from './components/TeamManagement';
 import MatchManagement from './components/MatchManagement';
+import CompactRules from './components/CompactRules';
 
 /**
  * Composant principal de l'application MyOrigines Tournoi
  * Interface moderne avec design professionnel
  */
-function App() {
+function AppContent() {
+  const { user, token, login, logout, isAuthenticated } = useAuth();
   const [currentView, setCurrentView] = useState('selection');
   const [showLogin, setShowLogin] = useState(false);
   const [password, setPassword] = useState('');
@@ -27,8 +29,6 @@ function App() {
     // Récupérer la date depuis localStorage ou utiliser 'lundi' par défaut
     return localStorage.getItem('adminSelectedDay') || 'lundi';
   });
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authToken, setAuthToken] = useState(null);
   const [editingScores, setEditingScores] = useState({
     team1_goals: 0,
     team2_goals: 0,
@@ -65,7 +65,7 @@ function App() {
 
   // Sélectionner automatiquement le premier match quand les matchs sont chargés
   useEffect(() => {
-    if (matches.length > 0 && !selectedMatch && isAuthenticated) {
+    if (matches.length > 0 && !selectedMatch && isAuthenticated()) {
       // Sélectionner automatiquement le premier match non terminé
       const firstMatch = matches.find(match => !match.finished) || matches[0];
       if (firstMatch) {
@@ -322,7 +322,11 @@ function App() {
 
   const handleViewChange = (view) => {
     if (view === 'admin') {
-      setShowLogin(true);
+      if (isAuthenticated()) {
+        setCurrentView('admin');
+      } else {
+        setShowLogin(true);
+      }
     } else if (view === 'display') {
       fetchMatches(currentDay, false);
       setCurrentView(view);
@@ -333,29 +337,16 @@ function App() {
 
   const handleLogin = async () => {
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: 'admin',
-          password: password
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Mot de passe incorrect');
+      const success = await login('admin', password);
+      if (success) {
+        setShowLogin(false);
+        setCurrentView('admin');
+        setPassword('');
+        setError(null);
+        fetchMatches(currentDay);
+      } else {
+        setError('Mot de passe incorrect');
       }
-
-      const data = await response.json();
-      setAuthToken(data.token);
-      setIsAuthenticated(true);
-      setShowLogin(false);
-      setCurrentView('admin');
-      setPassword('');
-      setError(null);
-      fetchMatches(currentDay);
     } catch (err) {
       setError(err.message);
     }
@@ -368,8 +359,7 @@ function App() {
       setAutoSaveTimeout(null);
     }
     
-    setIsAuthenticated(false);
-    setAuthToken(null);
+    logout();
     setCurrentView('selection');
     setSelectedMatch(null);
     setIsAutoSaving(false);
@@ -456,8 +446,8 @@ function App() {
       'Content-Type': 'application/json'
     };
     
-    if (authToken) {
-      headers['Authorization'] = `Bearer ${authToken}`;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
     try {
@@ -514,7 +504,7 @@ function App() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           team1_goals: editingScores.team1_goals,
@@ -570,7 +560,7 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authToken}`
+          'Authorization': `Bearer ${token}`
         }
       });
       
@@ -685,7 +675,7 @@ function App() {
       )}
 
       {/* Admin Interface */}
-      {currentView === 'admin' && isAuthenticated && (
+      {currentView === 'admin' && isAuthenticated() && (
         <div className="admin-container">
           <div className="d-flex justify-between align-center mb-3">
             <h2>MyOrigines - Interface Admin</h2>
@@ -1021,17 +1011,23 @@ function App() {
               </AuthProvider>
             </div>
           )}
+
         </div>
       )}
 
       {/* Live Display */}
       {currentView === 'display' && (
         <div className="live-container">
-          <div className="d-flex justify-between align-center mb-3">
-            <h2>MyOrigines - Tournoi de Babyfoot</h2>
-            <button className="btn btn-secondary" onClick={handleBackToSelection}>
-              Retour
-            </button>
+          <div className="live-header">
+            <div className="live-header-content">
+              <div></div>
+              <button className="btn btn-secondary" onClick={handleBackToSelection}>
+                Retour
+              </button>
+            </div>
+            <div className="live-rules-section">
+              <CompactRules />
+            </div>
           </div>
 
           <div className="live-grid">
@@ -1342,6 +1338,19 @@ function App() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Composant App principal avec les providers
+ */
+function App() {
+  return (
+    <AuthProvider>
+      <TournamentProvider>
+        <AppContent />
+      </TournamentProvider>
+    </AuthProvider>
   );
 }
 

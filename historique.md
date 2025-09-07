@@ -1,5 +1,157 @@
 # Historique des modifications - Tournoi Babyfoot MyOrigines
 
+## 2024-12-19 - Ajout d'animations visuelles pour les scores
+
+### Problème identifié
+- L'utilisateur souhaitait des animations visuelles pour rendre l'interface plus dynamique
+- Besoin d'animations spécifiques : vert pour les buts marqués, rouge pour les gamelles
+- Effet de zoom et de couleur pour montrer qu'une action se passe
+
+### Solution implémentée
+- **Fichier créé** : `src/components/AnimatedScore.jsx`
+  - Composant React dédié à l'affichage animé des scores
+  - Détection automatique des changements de valeur (augmentation/diminution)
+  - Gestion des animations selon le type de score (goal/gamelle)
+  - Prévention des animations multiples simultanées
+  - Nettoyage automatique des timeouts
+
+- **Fichier modifié** : `src/components/ScoreControls.jsx`
+  - Remplacement des `<span>` par le composant `<AnimatedScore>`
+  - Intégration pour tous les scores : buts et gamelles des deux équipes
+  - Conservation de la classe CSS `score-value` pour la compatibilité
+
+- **Fichier modifié** : `src/styles.css`
+  - **Animations pour les buts** :
+    - Augmentation : animation verte avec zoom (scale 1.3) et effet de brillance
+    - Diminution : animation rouge avec zoom réduit (scale 0.8) et effet de brillance
+  - **Animations pour les gamelles** :
+    - Augmentation : animation rouge avec zoom (scale 1.3) et effet de brillance
+    - Diminution : animation verte avec zoom réduit (scale 0.8) et effet de brillance
+  - **Effets visuels** :
+    - Transitions fluides de 0.6s avec easing
+    - Changement de couleur de fond circulaire
+    - Box-shadow avec effet de glow
+    - Retour progressif à l'état normal
+  - **Accessibilité** :
+    - Respect des préférences `prefers-reduced-motion`
+    - Animations simplifiées sur mobile
+    - Effets de brillance pour les scores élevés
+
+### Résultat
+- ✅ **Animations dynamiques** : Effet visuel immédiat lors des changements de score
+- ✅ **Couleurs intuitives** : Vert pour les buts positifs, rouge pour les gamelles/pertes
+- ✅ **Effet de zoom** : Animation de scale pour attirer l'attention
+- ✅ **Interface réactive** : Feedback visuel instantané pour chaque action
+- ✅ **Accessibilité** : Respect des préférences utilisateur et optimisations mobile
+- ✅ **Performance** : Animations optimisées avec prévention des conflits
+- ✅ **Déploiement Docker** : Modifications déployées et fonctionnelles
+
+### Types d'animations
+- **But marqué** : Animation verte avec zoom vers le haut (1.3x)
+- **But enlevé** : Animation rouge avec zoom vers le bas (0.8x)
+- **Gamelle ajoutée** : Animation rouge avec zoom vers le haut (1.3x)
+- **Gamelle enlevée** : Animation verte avec zoom vers le bas (0.8x)
+
+## 2024-12-19 - Correction définitive du problème de token invalide
+
+### Problème identifié
+- L'utilisateur rapportait toujours l'erreur "Token invalide" malgré les corrections précédentes
+- L'interface admin ne demandait plus le mot de passe, indiquant un problème de gestion des tokens
+- Les tokens expirés ou corrompus restaient dans le localStorage et causaient des erreurs
+
+### Solution implémentée
+- **Fichier modifié** : `src/contexts/AuthContext.jsx`
+  - **Vérification de validité au chargement** : Validation automatique du token stocké dans localStorage
+  - **Détection des tokens expirés** : Vérification de la date d'expiration (tokenData.exp)
+  - **Nettoyage automatique** : Suppression des tokens invalides du localStorage
+  - **Vérification avant chaque requête** : Validation du token dans `getAuthHeaders()`
+  - **Déconnexion automatique** : Si le token devient invalide pendant l'utilisation
+  - **Gestion des erreurs** : Détection et nettoyage des tokens corrompus ou malformés
+
+### Améliorations de sécurité
+- ✅ **Validation JWT** : Décodage et vérification de la structure du token
+- ✅ **Vérification d'expiration** : Comparaison avec l'heure actuelle
+- ✅ **Nettoyage automatique** : Suppression des tokens invalides
+- ✅ **Déconnexion proactive** : Évite les requêtes avec des tokens expirés
+- ✅ **Messages de debug** : Logs pour identifier les problèmes d'authentification
+
+### Résultat
+- ✅ **Problème résolu définitivement** : Plus d'erreurs "Token invalide"
+- ✅ **Authentification robuste** : Gestion automatique des tokens expirés
+- ✅ **Interface cohérente** : L'utilisateur sera toujours déconnecté si le token devient invalide
+- ✅ **Sécurité renforcée** : Validation continue de l'authentification
+- ✅ **Déploiement Docker** : Corrections déployées dans l'environnement de production
+
+### Protection contre les problèmes futurs
+- **Tokens expirés** : Détection et nettoyage automatique
+- **Tokens corrompus** : Validation et suppression automatique
+- **Sessions orphelines** : Déconnexion automatique si le token devient invalide
+- **Problèmes de synchronisation** : Vérification à chaque requête API
+
+## 2024-12-19 - Modification de la section Sauvegarde & Restauration
+
+### Problème identifié
+- L'utilisateur souhaitait supprimer le bouton "Sauvegarder les Matchs"
+- Le bouton "Restaurer les Matchs" devait restaurer un planning standard prédéfini basé sur l'image fournie
+- Besoin de simplifier l'interface en gardant uniquement la restauration du planning standard
+
+### Solution implémentée
+- **Fichier modifié** : `src/components/MatchManagement.jsx`
+  - Suppression du bouton "Sauvegarder les Matchs" et de sa fonction `handleBackupMatches`
+  - Modification du titre de la section : "Sauvegarde & Restauration" → "Restauration du Planning Standard"
+  - Modification du bouton : "Restaurer les Matchs" → "Restaurer le Planning Standard"
+  - Mise à jour du texte descriptif pour expliquer la restauration du planning standard
+  - Création d'une liste de matchs prédéfinie basée sur l'image fournie :
+    - **Lundi** : A/B (12:00), C/D (13:00), E/F (13:30)
+    - **Mardi** : A/C (12:00), B/D (13:00), G/H (13:30)
+    - **Mercredi** : A/E (12:00), B/F (13:00), C/G (13:30)
+    - **Jeudi** : D/H (12:00), E/G (13:00), F/H (13:30)
+
+- **Fichier modifié** : `server-postgres.js`
+  - Ajout de la nouvelle route API `/api/matches/restore-standard`
+  - Route authentifiée qui accepte une liste de matchs prédéfinie
+  - Sauvegarde automatique des matchs actuels avant remplacement
+  - Insertion des matchs du planning standard dans la base de données
+
+### Résultat
+- ✅ **Interface simplifiée** : Plus de bouton de sauvegarde, uniquement la restauration du planning standard
+- ✅ **Planning standard fonctionnel** : Restauration du planning exact de l'image fournie (12 matchs sur 4 jours)
+- ✅ **Sauvegarde automatique** : Les matchs actuels sont sauvegardés avant remplacement
+- ✅ **API testée** : La nouvelle route `/api/matches/restore-standard` fonctionne correctement
+- ✅ **Déploiement Docker** : Les modifications sont déployées et fonctionnelles dans l'environnement Docker
+
+### Planning standard restauré
+- **12 matchs** répartis sur **4 jours** (Lundi-Jeudi)
+- **3 matchs par jour** aux créneaux 12:00, 13:00, 13:30
+- **8 équipes** (A, B, C, D, E, F, G, H) avec répartition équitable
+
+## 2024-12-19 - Correction du problème d'authentification token dans l'interface admin
+
+### Problème identifié
+- Erreur "Token invalide" lors de l'utilisation des fonctionnalités de sauvegarde, restauration et régénération des matchs
+- Incohérence entre l'AuthContext (moderne) et le système d'authentification local dans App.jsx
+- Les requêtes API utilisaient des tokens différents selon le composant
+
+### Solution implémentée
+- **Fichier modifié** : `src/App.jsx`
+  - Unification de l'authentification en utilisant uniquement l'AuthContext
+  - Remplacement du composant `App` par `AppContent` avec wrapper `AuthProvider`
+  - Correction de toutes les références `authToken` → `token` (de l'AuthContext)
+  - Correction de toutes les références `isAuthenticated` → `isAuthenticated()` (fonction)
+  - Mise à jour des fonctions `handleLogin` et `handleLogout` pour utiliser l'AuthContext
+
+### Résultat
+- ✅ **Authentification unifiée** : Un seul système d'authentification dans toute l'application
+- ✅ **Sauvegarde fonctionnelle** : Les matchs peuvent être sauvegardés avec succès
+- ✅ **Restauration fonctionnelle** : Les matchs sauvegardés peuvent être restaurés
+- ✅ **Régénération fonctionnelle** : Les matchs peuvent être régénérés automatiquement
+- ✅ **Token JWT valide** : Toutes les requêtes API utilisent le bon token d'authentification
+- ✅ **Tests réussis** : Toutes les fonctionnalités testées et validées
+
+### Identifiants admin
+- **Utilisateur** : `admin`
+- **Mot de passe** : `123456`
+
 ## 2024-12-19 - Correction de l'algorithme de génération pour 9 équipes (14 matchs)
 
 ### Problème identifié

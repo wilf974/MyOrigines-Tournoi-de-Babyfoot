@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AnimatedScore from './AnimatedScore';
 
 /**
  * Composant de contrôle des scores
@@ -95,7 +96,11 @@ function ScoreControls({ match, onScoreUpdate, onMatchReset, onMatchSave, loadin
               >
                 -
               </button>
-              <span className="score-value">{scores.team1Goals}</span>
+              <AnimatedScore 
+                value={scores.team1Goals} 
+                type="goal" 
+                className="score-value" 
+              />
               <button 
                 className="score-btn plus" 
                 onClick={() => updateScore('team1', 'goals', 1)}
@@ -116,7 +121,11 @@ function ScoreControls({ match, onScoreUpdate, onMatchReset, onMatchSave, loadin
               >
                 -
               </button>
-              <span className="score-value">{scores.team1Gamelles}</span>
+              <AnimatedScore 
+                value={scores.team1Gamelles} 
+                type="gamelle" 
+                className="score-value" 
+              />
               <button 
                 className="score-btn plus" 
                 onClick={() => updateScore('team1', 'gamelles', 1)}
@@ -148,7 +157,11 @@ function ScoreControls({ match, onScoreUpdate, onMatchReset, onMatchSave, loadin
               >
                 -
               </button>
-              <span className="score-value">{scores.team2Goals}</span>
+              <AnimatedScore 
+                value={scores.team2Goals} 
+                type="goal" 
+                className="score-value" 
+              />
               <button 
                 className="score-btn plus" 
                 onClick={() => updateScore('team2', 'goals', 1)}
@@ -169,7 +182,11 @@ function ScoreControls({ match, onScoreUpdate, onMatchReset, onMatchSave, loadin
               >
                 -
               </button>
-              <span className="score-value">{scores.team2Gamelles}</span>
+              <AnimatedScore 
+                value={scores.team2Gamelles} 
+                type="gamelle" 
+                className="score-value" 
+              />
               <button 
                 className="score-btn plus" 
                 onClick={() => updateScore('team2', 'gamelles', 1)}
