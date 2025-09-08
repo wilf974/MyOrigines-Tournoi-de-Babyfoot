@@ -2124,8 +2124,340 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
-  padding-bottom: 1rem;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* Styles pour la gestion des matchs */
+.management-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
   border-bottom: 2px solid var(--gray-200);
+}
+
+.management-tab {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  background: transparent;
+  color: var(--gray-600);
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: var(--transition);
+}
+
+.management-tab:hover {
+  color: var(--primary-color);
+  background: var(--gray-100);
+}
+
+.management-tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  background: var(--gray-50);
+}
+
+/* Styles pour la gestion manuelle des matchs du vendredi */
+.friday-team-i-management {
+  padding: 2rem;
+}
+
+.management-header {
+  margin-bottom: 2rem;
+}
+
+.management-header h2 {
+  color: var(--primary-color);
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.management-header p {
+  color: var(--gray-600);
+  font-size: 1rem;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.manual-matches {
+  background: var(--white);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--box-shadow);
+  margin-bottom: 2rem;
+}
+
+.manual-matches h3 {
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+}
+
+.match-config {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 2px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  margin-bottom: 1rem;
+  background: var(--gray-50);
+}
+
+.match-time {
+  min-width: 80px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.match-teams {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.team-i {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.vs {
+  color: var(--gray-500);
+  font-weight: 500;
+}
+
+.opponent-select {
+  padding: 0.5rem;
+  border: 2px solid var(--gray-300);
+  border-radius: var(--border-radius);
+  background: var(--white);
+  min-width: 200px;
+  font-size: 0.9rem;
+}
+
+.opponent-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.matches-preview {
+  background: var(--white);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--box-shadow);
+  margin-bottom: 2rem;
+}
+
+.matches-preview h3 {
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+}
+
+.matches-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.match-preview {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--gray-50);
+  border-radius: var(--border-radius);
+  border-left: 4px solid var(--primary-color);
+}
+
+.match-preview .time {
+  font-weight: 600;
+  color: var(--primary-color);
+  min-width: 60px;
+}
+
+.match-preview .teams {
+  color: var(--gray-700);
+}
+
+.instructions {
+  background: var(--gray-50);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  border-left: 4px solid var(--info-color);
+}
+
+.instructions h4 {
+  color: var(--info-color);
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.instructions ul {
+  list-style: none;
+  padding: 0;
+}
+
+.instructions li {
+  padding: 0.5rem 0;
+  color: var(--gray-700);
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.instructions li:last-child {
+  border-bottom: none;
+}
+
+.instructions strong {
+  color: var(--primary-color);
+}
+
+/* Styles pour la gestion manuelle complète des matchs */
+.manual-match-management {
+  padding: 2rem;
+}
+
+.day-selection {
+  margin-bottom: 2rem;
+}
+
+.day-selection h3 {
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+  font-size: 1.3rem;
+}
+
+.day-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.day-tab {
+  padding: 0.75rem 1.5rem;
+  border: 2px solid var(--gray-300);
+  background: var(--white);
+  color: var(--gray-600);
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--border-radius);
+  transition: var(--transition);
+}
+
+.day-tab:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  background: var(--gray-50);
+}
+
+.day-tab.active {
+  border-color: var(--primary-color);
+  background: var(--primary-color);
+  color: var(--white);
+}
+
+.day-matches {
+  background: var(--white);
+  border-radius: var(--border-radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--box-shadow);
+  margin-bottom: 2rem;
+}
+
+.day-matches h3 {
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+}
+
+.no-matches {
+  text-align: center;
+  padding: 2rem;
+  color: var(--gray-500);
+  background: var(--gray-50);
+  border-radius: var(--border-radius);
+  border: 2px dashed var(--gray-300);
+}
+
+.matches-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.match-config {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 2px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  background: var(--gray-50);
+}
+
+.match-time {
+  min-width: 80px;
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+.match-teams {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex: 1;
+}
+
+.team-select {
+  padding: 0.5rem;
+  border: 2px solid var(--gray-300);
+  border-radius: var(--border-radius);
+  background: var(--white);
+  min-width: 180px;
+  font-size: 0.9rem;
+}
+
+.team-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.preview-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--gray-50);
+  border-radius: var(--border-radius);
+  border-left: 4px solid var(--success-color);
+}
+
+.preview-item .time {
+  font-weight: 600;
+  color: var(--primary-color);
+  min-width: 60px;
+}
+
+.preview-item .teams {
+  color: var(--gray-700);
 }
 
 .team-management-header h2 {

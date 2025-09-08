@@ -231,17 +231,75 @@ function TeamManagement() {
     resetForm();
   };
 
+  /**
+   * Crée l'équipe I spéciale
+   */
+  const handleCreateTeamI = async () => {
+    // Vérifier si l'équipe I existe déjà
+    const teamIExists = teams.find(team => team.id === 'I');
+    if (teamIExists) {
+      setError('L\'équipe I existe déjà !');
+      return;
+    }
+
+    if (!confirm('Voulez-vous créer l\'équipe I ? Cette équipe aura un statut spécial pour les matchs du vendredi.')) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/teams/create-team-i', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({
+          nom: 'Équipe I',
+          joueurs: ['Joueur I1', 'Joueur I2']
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(`✅ ${data.message}`);
+        await fetchTeams(); // Actualiser la liste des équipes
+      } else {
+        setError(`❌ Erreur: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Erreur création équipe I:', error);
+      setError('❌ Erreur lors de la création de l\'équipe I');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="team-management">
       <div className="team-management-header">
         <h2>Gestion des Équipes</h2>
-        <button 
-          className="btn btn--primary" 
-          onClick={handleAddTeam}
-          disabled={loading}
-        >
-          + Ajouter une équipe
-        </button>
+        <div className="header-buttons">
+          <button 
+            className="btn btn--primary" 
+            onClick={handleAddTeam}
+            disabled={loading}
+          >
+            + Ajouter une équipe
+          </button>
+          {!teams.find(team => team.id === 'I') && (
+            <button 
+              className="btn btn--warning" 
+              onClick={handleCreateTeamI}
+              disabled={loading}
+            >
+              🏆 Créer l'Équipe I
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages de statut */}

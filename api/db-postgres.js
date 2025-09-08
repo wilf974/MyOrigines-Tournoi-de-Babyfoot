@@ -136,7 +136,8 @@ async function initializeDefaultData(client) {
       { id: "E", nom: "Équipe E", joueurs: ["Clémence Loviconi", "Durand Gregory"] },
       { id: "F", nom: "Équipe F", joueurs: ["Carré Emmanuel", "Guyenot Benjamin"] },
       { id: "G", nom: "Équipe G", joueurs: ["Caroline Stolfi", "Maillot Wilfred"] },
-      { id: "H", nom: "Équipe H", joueurs: ["Stella Michelacci", "Grosjean Cédric"] }
+      { id: "H", nom: "Équipe H", joueurs: ["Stella Michelacci", "Grosjean Cédric"] },
+      { id: "I", nom: "Équipe I", joueurs: ["Joueur I1", "Joueur I2"] }
     ];
 
     for (const team of teams) {

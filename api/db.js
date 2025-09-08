@@ -113,7 +113,8 @@ async function initializeDefaultData(db) {
       { id: "E", nom: "Équipe E", joueurs: JSON.stringify(["Clémence Loviconi", "Durand Gregory"]) },
       { id: "F", nom: "Équipe F", joueurs: JSON.stringify(["Carré Emmanuel", "Guyenot Benjamin"]) },
       { id: "G", nom: "Équipe G", joueurs: JSON.stringify(["Caroline Stolfi", "Maillot Wilfred"]) },
-      { id: "H", nom: "Équipe H", joueurs: JSON.stringify(["Stella Michelacci", "Grosjean Cédric"]) }
+      { id: "H", nom: "Équipe H", joueurs: JSON.stringify(["Stella Michelacci", "Grosjean Cédric"]) },
+      { id: "I", nom: "Équipe I", joueurs: JSON.stringify(["Joueur I1", "Joueur I2"]) }
     ];
 
     const insertTeam = db.prepare(`

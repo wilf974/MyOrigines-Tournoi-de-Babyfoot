@@ -530,7 +530,7 @@ app.post('/api/matches/restore', authenticateToken, async (req, res) => {
 app.post('/api/matches/regenerate', async (req, res) => {
   try {
     const timestamp = new Date().toISOString();
-    const { matchesPerTeam = 3 } = req.body; // Valeur par défaut : 3 matchs par équipe
+    const { matchesPerTeam = 3, teamI = null } = req.body; // Valeur par défaut : 3 matchs par équipe
     console.log(`🔄 [${timestamp}] Régénération automatique des matchs demandée (${matchesPerTeam} matchs par équipe)`);
 
     // Validation du paramètre
@@ -553,8 +553,8 @@ app.post('/api/matches/regenerate', async (req, res) => {
     // Supprimer tous les matchs actuels
     await query('DELETE FROM matches');
 
-    // Générer les nouveaux matchs avec l'IA Mistral
-    const newMatches = generateMatches(teams, matchesPerTeam);
+    // Générer les nouveaux matchs avec support équipe I
+    const newMatches = await generateMatches(teams, matchesPerTeam, teamI);
 
     // Insérer les nouveaux matchs
     for (const match of newMatches) {
@@ -570,11 +570,277 @@ app.post('/api/matches/regenerate', async (req, res) => {
       message: `Matchs régénérés avec succès (${matchesPerTeam} matchs par équipe)`,
       count: newMatches.length,
       matchesPerTeam: matchesPerTeam,
-      matches: newMatches
+      matches: newMatches,
+      teamI: teamI ? `Équipe I: ${teamI.nom}` : 'Aucune équipe I'
     });
   } catch (error) {
     console.error('❌ Erreur régénération matchs:', error);
     res.status(500).json({ error: 'Erreur serveur lors de la régénération' });
+  }
+});
+
+// Route pour créer l'équipe I et générer les matchs du vendredi
+app.post('/api/teams/create-team-i', async (req, res) => {
+  try {
+    const timestamp = new Date().toISOString();
+    const { nom, joueurs } = req.body;
+    
+    console.log(`🏆 [${timestamp}] Création de l'équipe I: ${nom}`);
+
+    if (!nom || !joueurs || !Array.isArray(joueurs) || joueurs.length === 0) {
+      return res.status(400).json({ error: 'Nom et joueurs requis pour l\'équipe I' });
+    }
+
+    // Vérifier si l'équipe I existe déjà
+    const existingTeamI = await query('SELECT id FROM teams WHERE id = $1', ['I']);
+    if (existingTeamI.rows.length > 0) {
+      return res.status(400).json({ error: 'L\'équipe I existe déjà' });
+    }
+
+    // Créer l'équipe I
+    await query(`
+      INSERT INTO teams (id, nom, joueurs, points, buts, gamelles)
+      VALUES ($1, $2, $3, 0, 0, 0)
+    `, ['I', nom, JSON.stringify(joueurs)]);
+
+    console.log(`✅ [${timestamp}] Équipe I créée: ${nom} (${joueurs.join(', ')})`);
+    
+    res.json({
+      success: true,
+      message: 'Équipe I créée avec succès',
+      team: {
+        id: 'I',
+        nom,
+        joueurs,
+        points: 0,
+        buts: 0,
+        gamelles: 0
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erreur création équipe I:', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la création de l\'équipe I' });
+  }
+});
+
+// Route pour créer un match individuel
+app.post('/api/matches', async (req, res) => {
+  try {
+    const { id, jour, heure, equipe1_id, equipe2_id } = req.body;
+    const timestamp = new Date().toISOString();
+    
+    console.log(`⚽ [${timestamp}] Création d'un match: ${jour} ${heure} - ${equipe1_id} vs ${equipe2_id}`);
+
+    // Validation des données
+    if (!id || !jour || !heure || !equipe1_id || !equipe2_id) {
+      return res.status(400).json({ error: 'Tous les champs sont requis (id, jour, heure, equipe1_id, equipe2_id)' });
+    }
+
+    // Vérifier que les équipes existent
+    const team1Result = await query('SELECT id FROM teams WHERE id = $1', [equipe1_id]);
+    const team2Result = await query('SELECT id FROM teams WHERE id = $1', [equipe2_id]);
+    
+    if (team1Result.rows.length === 0) {
+      return res.status(400).json({ error: `L'équipe ${equipe1_id} n'existe pas` });
+    }
+    
+    if (team2Result.rows.length === 0) {
+      return res.status(400).json({ error: `L'équipe ${equipe2_id} n'existe pas` });
+    }
+
+    // Vérifier qu'il n'y a pas déjà un match avec le même ID
+    const existingMatch = await query('SELECT id FROM matches WHERE id = $1', [id]);
+    if (existingMatch.rows.length > 0) {
+      return res.status(400).json({ error: `Un match avec l'ID ${id} existe déjà` });
+    }
+
+    // Créer le match
+    await query(`
+      INSERT INTO matches (id, jour, heure, equipe1_id, equipe2_id, team1_goals, team1_gamelles, team2_goals, team2_gamelles, finished)
+      VALUES ($1, $2, $3, $4, $5, 0, 0, 0, 0, false)
+    `, [id, jour, heure, equipe1_id, equipe2_id]);
+
+    console.log(`✅ [${timestamp}] Match créé avec succès: ${id}`);
+    
+    res.json({
+      success: true,
+      message: 'Match créé avec succès',
+      match: {
+        id,
+        jour,
+        heure,
+        equipe1_id,
+        equipe2_id,
+        team1_goals: 0,
+        team1_gamelles: 0,
+        team2_goals: 0,
+        team2_gamelles: 0,
+        finished: false
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erreur création match:', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la création du match' });
+  }
+});
+
+// Route pour supprimer tous les matchs
+app.delete('/api/matches/delete-all', async (req, res) => {
+  try {
+    const timestamp = new Date().toISOString();
+    console.log(`🗑️ [${timestamp}] Suppression de tous les matchs`);
+
+    // Supprimer tous les matchs
+    const result = await query('DELETE FROM matches');
+    
+    console.log(`✅ [${timestamp}] ${result.rowCount} matchs supprimés`);
+    
+    res.json({
+      success: true,
+      message: `${result.rowCount} matchs supprimés`,
+      deletedCount: result.rowCount
+    });
+  } catch (error) {
+    console.error('❌ Erreur suppression tous les matchs:', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la suppression de tous les matchs' });
+  }
+});
+
+// Route pour supprimer tous les matchs d'un jour spécifique
+app.delete('/api/matches/delete-day/:day', async (req, res) => {
+  try {
+    const { day } = req.params;
+    const timestamp = new Date().toISOString();
+    console.log(`🗑️ [${timestamp}] Suppression des matchs du ${day}`);
+
+    // Supprimer tous les matchs du jour spécifié
+    const result = await query('DELETE FROM matches WHERE jour = $1', [day]);
+    
+    console.log(`✅ [${timestamp}] ${result.rowCount} matchs du ${day} supprimés`);
+    
+    res.json({
+      success: true,
+      message: `${result.rowCount} matchs du ${day} supprimés`,
+      deletedCount: result.rowCount
+    });
+  } catch (error) {
+    console.error('❌ Erreur suppression matchs jour:', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la suppression des matchs du jour' });
+  }
+});
+
+// Route pour supprimer tous les matchs du vendredi de l'équipe I
+app.delete('/api/matches/delete-friday-team-i', async (req, res) => {
+  try {
+    const timestamp = new Date().toISOString();
+    console.log(`🗑️ [${timestamp}] Suppression des matchs du vendredi pour l'équipe I`);
+
+    // Supprimer tous les matchs du vendredi pour l'équipe I
+    const result = await query('DELETE FROM matches WHERE jour = $1 AND (equipe1_id = $2 OR equipe2_id = $2)', ['vendredi', 'I']);
+    
+    console.log(`✅ [${timestamp}] ${result.rowCount} matchs du vendredi supprimés pour l'équipe I`);
+    
+    res.json({
+      success: true,
+      message: `${result.rowCount} matchs du vendredi supprimés pour l'équipe I`,
+      deletedCount: result.rowCount
+    });
+  } catch (error) {
+    console.error('❌ Erreur suppression matchs vendredi équipe I:', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la suppression des matchs du vendredi' });
+  }
+});
+
+// Route pour générer les matchs du vendredi avec l'équipe I
+app.post('/api/matches/generate-friday-team-i', async (req, res) => {
+  try {
+    const timestamp = new Date().toISOString();
+    console.log(`🏆 [${timestamp}] Génération des matchs du vendredi pour l'équipe I`);
+
+    // Vérifier que l'équipe I existe
+    const teamIResult = await query('SELECT * FROM teams WHERE id = $1', ['I']);
+    if (teamIResult.rows.length === 0) {
+      return res.status(400).json({ error: 'L\'équipe I n\'existe pas. Créez-la d\'abord.' });
+    }
+
+    const teamI = teamIResult.rows[0];
+
+    // Récupérer le classement actuel pour identifier les 3 équipes perdantes les mieux notées
+    // Utiliser le système de points basé sur les buts marqués moins les gamelles adverses
+    const rankingsResult = await query(`
+      SELECT 
+        t.id,
+        t.nom,
+        COALESCE(SUM(CASE 
+          WHEN m.equipe1_id = t.id THEN (m.team1_goals - m.team2_gamelles)
+          WHEN m.equipe2_id = t.id THEN (m.team2_goals - m.team1_gamelles)
+          ELSE 0
+        END), 0) as points,
+        COALESCE(SUM(CASE 
+          WHEN m.equipe1_id = t.id THEN (m.team1_goals - m.team2_gamelles) - (m.team2_goals - m.team1_gamelles)
+          WHEN m.equipe2_id = t.id THEN (m.team2_goals - m.team1_gamelles) - (m.team1_goals - m.team2_gamelles)
+          ELSE 0
+        END), 0) as difference
+      FROM teams t
+      LEFT JOIN matches m ON (m.equipe1_id = t.id OR m.equipe2_id = t.id) AND m.finished = true
+      WHERE t.id != 'I'
+      GROUP BY t.id, t.nom
+      ORDER BY points ASC, difference ASC
+      LIMIT 3
+    `);
+
+    const bottomThreeTeams = rankingsResult.rows;
+    
+    if (bottomThreeTeams.length < 3) {
+      return res.status(400).json({ error: 'Pas assez d\'équipes pour générer les matchs du vendredi' });
+    }
+
+    console.log(`🥉 3 équipes perdantes les mieux notées: ${bottomThreeTeams.map(t => t.nom).join(', ')}`);
+
+    // Supprimer les anciens matchs du vendredi pour l'équipe I
+    await query('DELETE FROM matches WHERE jour = $1 AND (equipe1_id = $2 OR equipe2_id = $2)', ['vendredi', 'I']);
+
+    // Générer les 3 matchs du vendredi
+    const fridayMatches = [];
+    const fridayTimes = ['12:00', '13:00', '13:30'];
+
+    for (let i = 0; i < 3; i++) {
+      const opponent = bottomThreeTeams[i];
+      const matchId = `vendredi_teamI_${i + 1}`;
+      
+      await query(`
+        INSERT INTO matches (id, jour, heure, equipe1_id, equipe2_id, team1_goals, team1_gamelles, team2_goals, team2_gamelles, finished)
+        VALUES ($1, $2, $3, $4, $5, 0, 0, 0, 0, false)
+      `, [matchId, 'vendredi', fridayTimes[i], 'I', opponent.id]);
+
+      fridayMatches.push({
+        id: matchId,
+        jour: 'vendredi',
+        heure: fridayTimes[i],
+        equipe1_id: 'I',
+        equipe2_id: opponent.id,
+        team1_goals: 0,
+        team1_gamelles: 0,
+        team2_goals: 0,
+        team2_gamelles: 0,
+        finished: false
+      });
+
+      console.log(`⚽ Match vendredi ${i + 1}: ${teamI.nom} vs ${opponent.nom} à ${fridayTimes[i]}`);
+    }
+
+    console.log(`✅ [${timestamp}] 3 matchs du vendredi générés pour l'équipe I`);
+    
+    res.json({
+      success: true,
+      message: 'Matchs du vendredi générés avec succès pour l\'équipe I',
+      teamI: teamI.nom,
+      opponents: bottomThreeTeams.map(t => t.nom),
+      matches: fridayMatches
+    });
+  } catch (error) {
+    console.error('❌ Erreur génération matchs vendredi équipe I:', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la génération des matchs du vendredi' });
   }
 });
 
@@ -583,6 +849,7 @@ app.post('/api/matches/regenerate', async (req, res) => {
  * Algorithme de génération de tournoi optimisé
  * Basé sur les spécifications du projet Baby-foot
  * Gère intelligemment le nombre de matchs selon le nombre d'équipes
+ * Support de l'équipe I avec les 3 équipes perdantes les mieux notées
  */
 class TournamentGenerator {
   constructor() {
@@ -591,6 +858,7 @@ class TournamentGenerator {
     this.daysAvailable = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
     this.times = ['12:00', '13:00', '13:30', '14:00', '14:30'];
     this.maxMatchesPerDay = 3;
+    this.teamI = null; // Équipe I spéciale
   }
 
   // Ajouter une équipe
@@ -600,6 +868,12 @@ class TournamentGenerator {
       return true;
     }
     return false;
+  }
+
+  // Définir l'équipe I spéciale
+  setTeamI(team) {
+    this.teamI = team;
+    console.log(`🏆 Équipe I définie: ${team.nom} (${team.id})`);
   }
 
   // Définir le nombre de matchs par équipe
@@ -629,29 +903,35 @@ class TournamentGenerator {
     console.log(`🔍 Génération des matchs: ${teamCount} équipes, ${this.matchesPerTeam} matchs par équipe`);
     console.log(`📋 Équipes disponibles: ${this.teams.map(t => t.nom).join(', ')}`);
 
+    // Vérifier si l'équipe I est définie
+    if (this.teamI) {
+      console.log(`🏆 Équipe I détectée: ${this.teamI.nom} - Génération spéciale du vendredi`);
+      return this.generateTournamentWithTeamI();
+    }
+
     // Configuration intelligente selon le nombre d'équipes
     let targetMatches;
     let daysToUse = [];
     let matchesPerDay = [];
 
     if (teamCount === 8) {
-      // 8 équipes : 12 matchs (3 matchs par équipe)
+      // 8 équipes : 12 matchs (3 matchs par équipe) - PAS de vendredi
       targetMatches = 12;
       daysToUse = ['lundi', 'mardi', 'mercredi', 'jeudi'];
       matchesPerDay = [3, 3, 3, 3];
-      console.log(`📅 Configuration 8 équipes: 12 matchs sur 4 jours (3 matchs/jour)`);
+      console.log(`📅 Configuration 8 équipes: 12 matchs sur 4 jours (3 matchs/jour) - Vendredi vide pour équipe I`);
     } else if (teamCount === 9) {
-      // 9 équipes : 14 matchs (configuration optimale)
-      targetMatches = 14;
-      daysToUse = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
-      matchesPerDay = [3, 3, 3, 3, 2];
-      console.log(`📅 Configuration 9 équipes: 14 matchs sur 5 jours (3+3+3+3+2)`);
+      // 9 équipes : 12 matchs sur 4 jours (lundi-jeudi) - PAS de vendredi automatique
+      targetMatches = 12;
+      daysToUse = ['lundi', 'mardi', 'mercredi', 'jeudi'];
+      matchesPerDay = [3, 3, 3, 3];
+      console.log(`📅 Configuration 9 équipes: 12 matchs sur 4 jours (3 matchs/jour) - Vendredi vide pour équipe I`);
     } else {
-      // Configuration par défaut
+      // Configuration par défaut - PAS de vendredi automatique
       targetMatches = Math.ceil((teamCount * this.matchesPerTeam) / 2);
-      daysToUse = this.daysAvailable;
+      daysToUse = ['lundi', 'mardi', 'mercredi', 'jeudi']; // Exclure le vendredi
       matchesPerDay = new Array(daysToUse.length).fill(this.maxMatchesPerDay);
-      console.log(`📅 Configuration par défaut: ${targetMatches} matchs sur ${daysToUse.length} jours`);
+      console.log(`📅 Configuration par défaut: ${targetMatches} matchs sur ${daysToUse.length} jours - Vendredi vide pour équipe I`);
     }
 
     console.log(`📊 Matchs cibles: ${targetMatches}`);
@@ -762,21 +1042,73 @@ class TournamentGenerator {
 
     return finalMatches;
   }
+
+  /**
+   * Génère un tournoi spécial avec l'équipe I
+   * L'équipe I affronte les 3 équipes perdantes les mieux notées le vendredi
+   */
+  async generateTournamentWithTeamI() {
+    console.log(`🏆 Génération spéciale avec équipe I: ${this.teamI.nom}`);
+    
+    try {
+      // 1. Générer le tournoi normal pour les équipes A-H (lundi-jeudi)
+      const regularTeams = this.teams.filter(team => team.id !== this.teamI.id);
+      console.log(`📋 Équipes régulières: ${regularTeams.map(t => t.nom).join(', ')}`);
+      
+      // Créer un générateur temporaire pour les équipes régulières
+      const regularGenerator = new TournamentGenerator();
+      regularTeams.forEach(team => regularGenerator.addTeam(team));
+      regularGenerator.setMatchesPerTeam(this.matchesPerTeam);
+      
+      // Générer les matchs réguliers (lundi-jeudi)
+      const regularResult = regularGenerator.generateTournament();
+      if (!regularResult.success) {
+        return { success: false, error: regularResult.error };
+      }
+      
+      console.log(`✅ ${regularResult.schedule.size} jours de matchs réguliers générés`);
+      
+      // 2. Ne pas générer automatiquement les matchs du vendredi
+      // Les matchs du vendredi seront générés manuellement via l'API
+      console.log(`📅 Vendredi laissé vide pour génération manuelle des matchs de l'équipe I`);
+      
+      // 3. Retourner seulement les matchs réguliers (lundi-jeudi)
+      console.log(`🎯 Total: ${regularResult.schedule.length} matchs générés (lundi-jeudi seulement)`);
+      
+      return {
+        success: true,
+        schedule: regularResult.schedule,
+        regularMatches: regularResult.schedule.length,
+        fridayMatches: 0,
+        teamIMatches: []
+      };
+      
+    } catch (error) {
+      console.error('❌ Erreur génération tournoi équipe I:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 /**
  * Fonction principale de génération de matchs
  * Utilise la classe TournamentGenerator avancée
+ * Support de l'équipe I avec les 3 équipes perdantes les mieux notées
  */
-function generateMatches(teams, matchesPerTeam = 3) {
+async function generateMatches(teams, matchesPerTeam = 3, teamI = null) {
   const generator = new TournamentGenerator();
   
   // Ajouter toutes les équipes
   teams.forEach(team => generator.addTeam(team));
   generator.setMatchesPerTeam(matchesPerTeam);
   
+  // Définir l'équipe I si fournie
+  if (teamI) {
+    generator.setTeamI(teamI);
+  }
+  
   // Générer le tournoi
-  const result = generator.generateTournament();
+  const result = await generator.generateTournament();
   
   if (result.success) {
     const finalMatches = generator.convertToAppFormat(result.schedule);

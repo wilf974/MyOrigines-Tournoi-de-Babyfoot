@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useTournament } from '../contexts/TournamentContext';
+import FridayTeamIManagement from './FridayTeamIManagement';
+import ManualMatchManagement from './ManualMatchManagement';
 
 /**
  * Composant de gestion des matchs
@@ -11,6 +13,7 @@ function MatchManagement() {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
   const [matchesPerTeam, setMatchesPerTeam] = useState(3);
+  const [activeSection, setActiveSection] = useState('general');
 
   /**
    * Affiche un message de feedback
@@ -24,6 +27,47 @@ function MatchManagement() {
       setMessage('');
       setMessageType('');
     }, 5000);
+  };
+
+  /**
+   * Génère les matchs du vendredi pour l'équipe I
+   */
+  const handleGenerateFridayMatches = async () => {
+    if (!confirm('Voulez-vous générer les matchs du vendredi pour l\'équipe I ? Cela remplacera les matchs du vendredi existants pour l\'équipe I.')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch('/api/matches/generate-friday-team-i', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showMessage(
+          `✅ ${data.message}\n\n` +
+          `🏆 Équipe I: ${data.teamI}\n` +
+          `🥉 Adversaires: ${data.opponents.join(', ')}\n` +
+          `⚽ ${data.matches.length} matchs générés`,
+          'success'
+        );
+        
+        // Actualiser les données
+        await refreshData();
+      } else {
+        showMessage(`❌ Erreur: ${data.error}`, 'error');
+      }
+    } catch (error) {
+      console.error('Erreur génération matchs vendredi:', error);
+      showMessage('❌ Erreur lors de la génération des matchs du vendredi', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
 
@@ -128,6 +172,28 @@ function MatchManagement() {
       <div className="match-management-header">
         <h2>Gestion des Matchs</h2>
         <p>Gérez les matchs du tournoi : sauvegardez, restaurez ou régénérez automatiquement les matchs.</p>
+        
+        {/* Onglets de navigation */}
+        <div className="management-tabs">
+          <button 
+            className={`management-tab ${activeSection === 'general' ? 'active' : ''}`}
+            onClick={() => setActiveSection('general')}
+          >
+            Général
+          </button>
+          <button 
+            className={`management-tab ${activeSection === 'manual' ? 'active' : ''}`}
+            onClick={() => setActiveSection('manual')}
+          >
+            ⚽ Gestion Manuelle
+          </button>
+          <button 
+            className={`management-tab ${activeSection === 'friday-team-i' ? 'active' : ''}`}
+            onClick={() => setActiveSection('friday-team-i')}
+          >
+            🏆 Vendredi - Équipe I
+          </button>
+        </div>
       </div>
 
       {/* Message de feedback */}
@@ -137,8 +203,11 @@ function MatchManagement() {
         </div>
       )}
 
-      {/* Actions de gestion des matchs */}
-      <div className="match-actions">
+      {/* Contenu des sections */}
+      {activeSection === 'general' && (
+        <div className="general-section">
+          {/* Actions de gestion des matchs */}
+          <div className="match-actions">
         <div className="action-group">
           <h3>Restauration du Planning Standard</h3>
           <div className="action-buttons">
@@ -193,9 +262,27 @@ function MatchManagement() {
                     Chaque équipe jouera exactement {matchesPerTeam} match{matchesPerTeam > 1 ? 's' : ''}, répartis sur les jours disponibles.
                   </p>
                 </div>
-      </div>
 
-      {/* Informations sur la régénération */}
+        {/* Gestion de l'équipe I - Matchs du vendredi */}
+        <div className="action-group">
+          <h3>🏆 Gestion de l'Équipe I - Matchs du Vendredi</h3>
+          <div className="action-buttons">
+            <button
+              className="btn btn--primary"
+              onClick={handleGenerateFridayMatches}
+              disabled={loading}
+            >
+              {loading ? 'Génération...' : '⚽ Générer les Matchs du Vendredi pour l\'Équipe I'}
+            </button>
+          </div>
+          <p className="action-description">
+            Génère automatiquement 3 matchs le vendredi pour l'équipe I contre les 3 équipes perdantes les mieux notées.
+            Les matchs seront programmés à 12:00, 13:00 et 13:30.
+          </p>
+        </div>
+          </div>
+
+          {/* Informations sur la régénération */}
       <div className="regeneration-info">
         <h4>Comment fonctionne la régénération ?</h4>
         <ul>
@@ -207,6 +294,16 @@ function MatchManagement() {
           <li>💾 <strong>Sauvegarde automatique</strong> : Les matchs actuels sont automatiquement sauvegardés avant remplacement</li>
         </ul>
       </div>
+        </div>
+      )}
+
+      {activeSection === 'manual' && (
+        <ManualMatchManagement />
+      )}
+
+      {activeSection === 'friday-team-i' && (
+        <FridayTeamIManagement />
+      )}
     </div>
   );
 }

@@ -13,13 +13,39 @@ export function AuthProvider({ children }) {
 
   /**
    * Vérifie si l'utilisateur est connecté au chargement
-   * FORCE LA DEMANDE DE MOT DE PASSE À CHAQUE FOIS
    */
   useEffect(() => {
-    // Nettoyer le localStorage pour forcer la reconnexion
-    localStorage.removeItem('tournoi_token');
-    localStorage.removeItem('tournoi_user');
-    console.log('🔐 Authentification forcée - mot de passe requis');
+    // Vérifier si un token existe dans le localStorage
+    const savedToken = localStorage.getItem('tournoi_token');
+    const savedUser = localStorage.getItem('tournoi_user');
+    
+    if (savedToken && savedUser) {
+      try {
+        // Vérifier si le token est encore valide
+        const tokenData = JSON.parse(atob(savedToken.split('.')[1]));
+        const currentTime = Date.now() / 1000;
+        
+        if (tokenData.exp && tokenData.exp > currentTime) {
+          // Token valide, restaurer la session
+          setToken(savedToken);
+          setUser(JSON.parse(savedUser));
+          console.log('🔐 Session restaurée depuis le localStorage');
+        } else {
+          // Token expiré, nettoyer
+          localStorage.removeItem('tournoi_token');
+          localStorage.removeItem('tournoi_user');
+          console.log('🔐 Token expiré, reconnexion requise');
+        }
+      } catch (error) {
+        // Token invalide, nettoyer
+        localStorage.removeItem('tournoi_token');
+        localStorage.removeItem('tournoi_user');
+        console.log('🔐 Token invalide, reconnexion requise');
+      }
+    } else {
+      console.log('🔐 Aucune session sauvegardée, connexion requise');
+    }
+    
     setLoading(false);
   }, []);
 
@@ -67,6 +93,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     localStorage.removeItem('tournoi_token');
     localStorage.removeItem('tournoi_user');
+    console.log('🔐 Utilisateur déconnecté');
   };
 
   /**
