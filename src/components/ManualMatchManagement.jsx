@@ -6,7 +6,7 @@ import { useTournament } from '../contexts/TournamentContext';
  * Permet de modifier les équipes pour n'importe quel jour
  */
 function ManualMatchManagement() {
-  const { teams, matches, refreshData } = useTournament();
+  const { teams, matches, currentDay, refreshData, fetchMatches } = useTournament();
   
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -14,6 +14,7 @@ function ManualMatchManagement() {
   const [selectedDay, setSelectedDay] = useState('lundi');
   const [dayMatches, setDayMatches] = useState([]);
   const [availableTeams, setAvailableTeams] = useState([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Jours disponibles
   const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi'];
@@ -39,14 +40,31 @@ function ManualMatchManagement() {
    * Charge les matchs du jour sélectionné
    */
   const loadDayMatches = () => {
-    if (!Array.isArray(matches)) {
-      console.warn('matches is not an array:', matches);
+    // Le contexte TournamentContext stocke les matchs par jour dans un objet
+    const dayMatchesList = matches[selectedDay] || [];
+    
+    if (!Array.isArray(dayMatchesList)) {
+      console.warn('dayMatchesList is not an array:', dayMatchesList);
       setDayMatches([]);
       return;
     }
-    const dayMatchesList = matches.filter(match => match.jour === selectedDay);
+    
     console.log(`📅 Chargement des matchs du ${selectedDay}:`, dayMatchesList);
-    setDayMatches(dayMatchesList);
+    
+    // Trier les matchs par heure
+    const sortedMatches = dayMatchesList.sort((a, b) => {
+      return a.heure.localeCompare(b.heure);
+    });
+    
+    setDayMatches(sortedMatches);
+    
+    // Log détaillé pour le débogage
+    const ongoingMatches = sortedMatches.filter(match => !match.finished);
+    const finishedMatches = sortedMatches.filter(match => match.finished);
+    console.log(`📊 ${selectedDay}: ${sortedMatches.length} total, ${ongoingMatches.length} en cours, ${finishedMatches.length} terminés`);
+    
+    // Réinitialiser l'état des modifications non sauvegardées
+    setHasUnsavedChanges(false);
   };
 
   /**
@@ -67,6 +85,16 @@ function ManualMatchManagement() {
   useEffect(() => {
     loadDayMatches();
   }, [selectedDay, matches]);
+
+  /**
+   * Charge les matchs du jour sélectionné depuis l'API si nécessaire
+   */
+  useEffect(() => {
+    if (selectedDay && (!matches[selectedDay] || matches[selectedDay].length === 0)) {
+      console.log(`🔄 Chargement des matchs du ${selectedDay} depuis l'API...`);
+      fetchMatches(selectedDay);
+    }
+  }, [selectedDay, matches, fetchMatches]);
 
   /**
    * Met à jour une équipe dans un match
@@ -91,6 +119,8 @@ function ManualMatchManagement() {
       return match;
     });
     setDayMatches(updatedMatches);
+    setHasUnsavedChanges(true);
+    showMessage('⚠️ Modifications non sauvegardées - Cliquez sur "Sauvegarder" pour confirmer', 'info');
   };
 
   /**
@@ -224,7 +254,12 @@ function ManualMatchManagement() {
       console.log('🔄 Actualisation des données...');
       await refreshData();
       console.log('🔄 Rechargement des matchs du jour...');
-      loadDayMatches();
+      
+      // Recharger les matchs depuis l'API pour s'assurer d'avoir les bonnes données
+      await fetchMatches(selectedDay);
+      
+      // Réinitialiser l'état des modifications non sauvegardées
+      setHasUnsavedChanges(false);
       
     } catch (error) {
       console.error('❌ Erreur générale lors de la sauvegarde:', error);
@@ -283,11 +318,99 @@ function ManualMatchManagement() {
     return team ? team.nom : 'Non sélectionné';
   };
 
+  /**
+   * Obtient le statut d'un match avec plus de détails
+   * @param {Object} match - Objet match
+   * @returns {Object} Statut du match avec icône et classe CSS
+   */
+  const getMatchStatus = (match) => {
+    if (match.finished) {
+      return {
+        text: 'Terminé',
+        icon: '✅',
+        className: 'status-finished',
+        description: `Score: ${match.team1_goals || 0}-${match.team2_goals || 0}`,
+        canEdit: false,
+        color: '#28a745'
+      };
+    } else if (match.team1_goals > 0 || match.team2_goals > 0 || match.team1_gamelles > 0 || match.team2_gamelles > 0) {
+      return {
+        text: 'En cours',
+        icon: '⏳',
+        className: 'status-ongoing',
+        description: `Score actuel: ${match.team1_goals || 0}-${match.team2_goals || 0}`,
+        canEdit: true,
+        color: '#ffc107'
+      };
+    } else {
+      return {
+        text: 'À venir',
+        icon: '📅',
+        className: 'status-upcoming',
+        description: 'Match non commencé',
+        canEdit: true,
+        color: '#17a2b8'
+      };
+    }
+  };
+
+  /**
+   * Obtient les statistiques globales de tous les matchs
+   * @returns {Object} Statistiques des matchs
+   */
+  const getGlobalStats = () => {
+    let totalMatches = 0;
+    let finishedMatches = 0;
+    let ongoingMatches = 0;
+    let upcomingMatches = 0;
+
+    days.forEach(day => {
+      const dayMatches = matches[day] || [];
+      totalMatches += dayMatches.length;
+      dayMatches.forEach(match => {
+        if (match.finished) {
+          finishedMatches++;
+        } else if (match.team1_goals > 0 || match.team2_goals > 0 || match.team1_gamelles > 0 || match.team2_gamelles > 0) {
+          ongoingMatches++;
+        } else {
+          upcomingMatches++;
+        }
+      });
+    });
+
+    return { totalMatches, finishedMatches, ongoingMatches, upcomingMatches };
+  };
+
+  const globalStats = getGlobalStats();
+
   return (
     <div className="manual-match-management">
       <div className="management-header">
         <h2>⚽ Gestion Manuelle des Matchs</h2>
         <p>Modifiez les équipes pour n'importe quel jour du tournoi.</p>
+      </div>
+
+      {/* Vue d'ensemble globale */}
+      <div className="global-overview">
+        <h3>📊 Vue d'Ensemble du Tournoi</h3>
+        <div className="global-stats">
+          <div className="stat-card">
+            <div className="stat-number">{globalStats.totalMatches}</div>
+            <div className="stat-label">Total Matchs</div>
+          </div>
+          <div className="stat-card finished">
+            <div className="stat-number">{globalStats.finishedMatches}</div>
+            <div className="stat-label">Terminés</div>
+          </div>
+          <div className="stat-card ongoing">
+            <div className="stat-number">{globalStats.ongoingMatches}</div>
+            <div className="stat-label">En cours</div>
+          </div>
+          <div className="stat-card upcoming">
+            <div className="stat-number">{globalStats.upcomingMatches}</div>
+            <div className="stat-label">À venir</div>
+          </div>
+        </div>
       </div>
 
       {/* Message de feedback */}
@@ -297,9 +420,59 @@ function ManualMatchManagement() {
         </div>
       )}
 
+      {/* Vue d'ensemble de tous les matchs */}
+      <div className="all-matches-overview">
+        <h3>📋 Vue d'Ensemble de Tous les Matchs</h3>
+        <div className="week-matches">
+          {days.map(day => {
+            const dayMatches = matches[day] || [];
+            const dayStats = {
+              total: dayMatches.length,
+              finished: dayMatches.filter(m => m.finished).length,
+              ongoing: dayMatches.filter(m => !m.finished && (m.team1_goals > 0 || m.team2_goals > 0 || m.team1_gamelles > 0 || m.team2_gamelles > 0)).length,
+              upcoming: dayMatches.filter(m => !m.finished && m.team1_goals === 0 && m.team2_goals === 0 && m.team1_gamelles === 0 && m.team2_gamelles === 0).length
+            };
+            
+            return (
+              <div key={day} className="day-overview">
+                <div className="day-header">
+                  <h4>{day.charAt(0).toUpperCase() + day.slice(1)}</h4>
+                  <div className="day-stats">
+                    <span className="stat-badge total">{dayStats.total}</span>
+                    <span className="stat-badge finished">{dayStats.finished}</span>
+                    <span className="stat-badge ongoing">{dayStats.ongoing}</span>
+                    <span className="stat-badge upcoming">{dayStats.upcoming}</span>
+                  </div>
+                </div>
+                <div className="day-matches-list">
+                  {dayMatches.length === 0 ? (
+                    <p className="no-matches-day">Aucun match programmé</p>
+                  ) : (
+                    dayMatches.map(match => {
+                      const status = getMatchStatus(match);
+                      return (
+                        <div key={match.id} className={`match-overview-item ${match.finished ? 'finished' : ''}`}>
+                          <span className="match-time">{match.heure}</span>
+                          <span className="match-teams">
+                            {getTeamName(match.equipe1_id)} vs {getTeamName(match.equipe2_id)}
+                          </span>
+                          <span className={`match-status-badge ${status.className}`}>
+                            {status.icon} {status.text}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Sélection du jour */}
       <div className="day-selection">
-        <h3>📅 Sélection du Jour</h3>
+        <h3>📅 Sélection du Jour pour Modification</h3>
         <div className="day-tabs">
           {days.map(day => (
             <button
@@ -323,11 +496,12 @@ function ManualMatchManagement() {
           ➕ Ajouter un Match
         </button>
         <button
-          className="btn btn--success"
+          className={`btn btn--success ${hasUnsavedChanges ? 'btn--pulse' : ''}`}
           onClick={saveDayMatches}
           disabled={loading}
         >
           {loading ? 'Sauvegarde...' : '💾 Sauvegarder'}
+          {hasUnsavedChanges && !loading && <span className="unsaved-indicator">⚠️</span>}
         </button>
         <button
           className="btn btn--danger"
@@ -342,6 +516,24 @@ function ManualMatchManagement() {
       <div className="day-matches">
         <h3>🏆 Matchs du {selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1)}</h3>
         
+        {/* Statistiques des matchs */}
+        {Array.isArray(dayMatches) && dayMatches.length > 0 && (
+          <div className="matches-stats">
+            <div className="stat-item">
+              <span className="stat-label">Total:</span>
+              <span className="stat-value">{dayMatches.length}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">En cours:</span>
+              <span className="stat-value ongoing">{dayMatches.filter(m => !m.finished).length}</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-label">Terminés:</span>
+              <span className="stat-value finished">{dayMatches.filter(m => m.finished).length}</span>
+            </div>
+          </div>
+        )}
+        
         {!Array.isArray(dayMatches) || dayMatches.length === 0 ? (
           <div className="no-matches">
             <p>Aucun match programmé pour le {selectedDay}.</p>
@@ -349,54 +541,78 @@ function ManualMatchManagement() {
           </div>
         ) : (
           <div className="matches-list">
-            {dayMatches.map((match, index) => (
-              <div key={match.id} className="match-config">
-                <div className="match-time">
-                  <strong>{match.heure}</strong>
-                </div>
-                
-                <div className="match-teams">
-                  <select
-                    value={match.equipe1_id || ''}
-                    onChange={(e) => updateMatchTeam(match.id, 'equipe1_id', e.target.value)}
-                    className="team-select"
-                    disabled={loading}
-                  >
-                    <option value="">-- Équipe 1 --</option>
-                    {availableTeams.map(team => (
-                      <option key={team.id} value={team.id}>
-                        {team.nom}
-                      </option>
-                    ))}
-                  </select>
+            {dayMatches.map((match, index) => {
+              const status = getMatchStatus(match);
+              return (
+                <div key={match.id} className={`match-config ${match.finished ? 'match-finished' : ''}`}>
+                  <div className="match-header">
+                    <div className="match-time">
+                      <strong>{match.heure}</strong>
+                    </div>
+                    <div className={`match-status ${status.className}`}>
+                      <span className="status-icon">{status.icon}</span>
+                      <span className="status-text">{status.text}</span>
+                      {match.finished && (
+                        <span className="status-score">{status.description}</span>
+                      )}
+                    </div>
+                  </div>
                   
-                  <span className="vs">vs</span>
-                  
-                  <select
-                    value={match.equipe2_id || ''}
-                    onChange={(e) => updateMatchTeam(match.id, 'equipe2_id', e.target.value)}
-                    className="team-select"
-                    disabled={loading}
-                  >
-                    <option value="">-- Équipe 2 --</option>
-                    {availableTeams.map(team => (
-                      <option key={team.id} value={team.id}>
-                        {team.nom}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  <div className="match-teams">
+                    <select
+                      value={match.equipe1_id || ''}
+                      onChange={(e) => updateMatchTeam(match.id, 'equipe1_id', e.target.value)}
+                      className={`team-select ${!status.canEdit ? 'disabled' : ''}`}
+                      disabled={loading || !status.canEdit}
+                    >
+                      <option value="">-- Équipe 1 --</option>
+                      {availableTeams.map(team => (
+                        <option key={team.id} value={team.id}>
+                          {team.nom}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    <span className="vs">vs</span>
+                    
+                    <select
+                      value={match.equipe2_id || ''}
+                      onChange={(e) => updateMatchTeam(match.id, 'equipe2_id', e.target.value)}
+                      className={`team-select ${!status.canEdit ? 'disabled' : ''}`}
+                      disabled={loading || !status.canEdit}
+                    >
+                      <option value="">-- Équipe 2 --</option>
+                      {availableTeams.map(team => (
+                        <option key={team.id} value={team.id}>
+                          {team.nom}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                <button
-                  className="btn btn--small btn--danger"
-                  onClick={() => removeMatch(match.id)}
-                  disabled={loading}
-                  title="Supprimer ce match"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
+                  <div className="match-actions">
+                    <button
+                      className="btn btn--small btn--danger"
+                      onClick={() => removeMatch(match.id)}
+                      disabled={loading || !status.canEdit}
+                      title={!status.canEdit ? "Impossible de supprimer un match terminé" : "Supprimer ce match"}
+                    >
+                      ✕
+                    </button>
+                    {!status.canEdit && (
+                      <span className="locked-note" title="Ce match est terminé et ne peut pas être modifié">
+                        🔒 Verrouillé
+                      </span>
+                    )}
+                    {status.canEdit && (match.team1_goals > 0 || match.team2_goals > 0 || match.team1_gamelles > 0 || match.team2_gamelles > 0) && (
+                      <span className="ongoing-note" title="Ce match est en cours - les équipes peuvent encore être modifiées">
+                        ⚠️ En cours
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -408,14 +624,23 @@ function ManualMatchManagement() {
           <div className="preview-list">
             {dayMatches
               .filter(match => match.equipe1_id && match.equipe2_id)
-              .map((match, index) => (
-                <div key={index} className="preview-item">
-                  <span className="time">{match.heure}</span>
-                  <span className="teams">
-                    {getTeamName(match.equipe1_id)} vs {getTeamName(match.equipe2_id)}
-                  </span>
-                </div>
-              ))}
+              .map((match, index) => {
+                const status = getMatchStatus(match);
+                return (
+                  <div key={index} className={`preview-item ${match.finished ? 'preview-finished' : ''}`}>
+                    <span className="time">{match.heure}</span>
+                    <span className="teams">
+                      {getTeamName(match.equipe1_id)} vs {getTeamName(match.equipe2_id)}
+                    </span>
+                    <span className={`preview-status ${status.className}`}>
+                      {status.icon} {status.text}
+                      {match.finished && (
+                        <span className="preview-score"> ({status.description})</span>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}
@@ -427,9 +652,16 @@ function ManualMatchManagement() {
           <li><strong>Sélection du jour</strong> : Choisissez le jour à modifier avec les onglets</li>
           <li><strong>Ajouter un match</strong> : Crée un nouveau match au prochain créneau disponible</li>
           <li><strong>Modifier les équipes</strong> : Utilisez les menus déroulants pour changer les équipes</li>
-          <li><strong>Sauvegarder</strong> : Enregistre tous les matchs du jour sélectionné</li>
+          <li><strong>Sauvegarder</strong> : ⚠️ <strong>IMPORTANT</strong> - Cliquez sur "Sauvegarder" après chaque modification pour que les changements soient pris en compte</li>
           <li><strong>Vider le jour</strong> : Supprime tous les matchs du jour sélectionné</li>
         </ul>
+        
+        {hasUnsavedChanges && (
+          <div className="warning-box">
+            <strong>⚠️ Attention :</strong> Vous avez des modifications non sauvegardées. 
+            Cliquez sur le bouton "Sauvegarder" pour confirmer vos changements.
+          </div>
+        )}
       </div>
     </div>
   );

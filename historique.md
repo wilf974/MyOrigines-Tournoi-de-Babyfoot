@@ -1,5 +1,224 @@
 # Historique des modifications - Tournoi Babyfoot MyOrigines
 
+## 2024-12-19 - Amélioration de la gestion des matchs avec statuts détaillés
+
+### Fonctionnalités ajoutées
+
+- **Vue d'ensemble globale** : Affichage des statistiques de tous les matchs du tournoi (total, terminés, en cours, à venir)
+- **Statuts détaillés** : Distinction entre matchs terminés, en cours et à venir avec codes couleur
+- **Vue d'ensemble de la semaine** : Affichage de tous les matchs de la semaine avec leur statut
+- **Modification conditionnelle** : Possibilité de modifier les équipes uniquement pour les matchs non terminés
+- **Interface améliorée** : Meilleure visibilité des statuts avec badges colorés et notes explicatives
+
+### Modifications apportées
+
+#### Interface utilisateur améliorée
+- **Fichier modifié** : `src/components/ManualMatchManagement.jsx`
+- **Fonctionnalités** :
+  - Vue d'ensemble globale avec statistiques du tournoi
+  - Vue d'ensemble de tous les matchs de la semaine
+  - Statuts détaillés : Terminé (✅), En cours (⏳), À venir (📅)
+  - Modification des équipes uniquement pour les matchs non terminés
+  - Notes explicatives pour les matchs verrouillés
+
+#### Styles CSS améliorés
+- **Fichier modifié** : `src/styles.css`
+- **Ajouts** :
+  - Styles pour la vue d'ensemble globale
+  - Styles pour les différents statuts de matchs
+  - Styles pour les matchs verrouillés
+  - Styles pour les notes d'état
+  - Design responsive pour la vue d'ensemble
+
+### Résultat
+L'interface permet maintenant de voir clairement tous les matchs de la semaine avec leur statut, et de modifier les équipes uniquement pour les matchs qui ne sont pas encore terminés, répondant parfaitement à la demande utilisateur.
+
+## 2024-12-19 - Correction du problème de sauvegarde des modifications d'équipes
+
+### Problème identifié
+- **Problème utilisateur** : Les modifications d'équipes dans la gestion manuelle des matchs n'étaient pas sauvegardées malgré le clic sur "Sauvegarder"
+- **Cause** : Le processus de sauvegarde fonctionnait mais la rechargement des données après sauvegarde ne se faisait pas correctement
+- **Impact** : Les utilisateurs pensaient que leurs modifications n'étaient pas prises en compte
+
+### Solutions implémentées
+
+#### Amélioration du processus de sauvegarde
+- **Fichier modifié** : `src/components/ManualMatchManagement.jsx`
+- **Corrections** :
+  - Amélioration de la fonction `saveDayMatches()` pour recharger correctement les données
+  - Ajout d'un appel à `fetchMatches(selectedDay)` après la sauvegarde
+  - Réinitialisation de l'état `hasUnsavedChanges` après sauvegarde
+
+#### Indicateurs visuels améliorés
+- **Fonctionnalités ajoutées** :
+  - Indicateur de modifications non sauvegardées avec animation
+  - Message d'avertissement quand il y a des modifications en attente
+  - Bouton "Sauvegarder" avec animation de pulsation quand il y a des changements
+  - Instructions clarifiées sur l'importance de cliquer sur "Sauvegarder"
+
+#### Styles CSS améliorés
+- **Fichier modifié** : `src/styles.css`
+- **Ajouts** :
+  - Animation de pulsation pour le bouton de sauvegarde
+  - Animation de clignotement pour l'indicateur d'alerte
+  - Style pour la boîte d'avertissement des modifications non sauvegardées
+
+#### Script de test
+- **Fichier créé** : `test-save-matches.js`
+- **Fonctionnalité** : Script de test pour vérifier le bon fonctionnement du processus de sauvegarde
+
+### Résultat
+Le processus de sauvegarde fonctionne maintenant correctement et les utilisateurs sont clairement informés quand ils ont des modifications non sauvegardées, éliminant la confusion sur le fonctionnement de l'interface.
+
+## 2024-12-19 - Correction des problèmes d'affichage et d'authentification
+
+### Problèmes identifiés
+
+- **Problème 1** : Les matchs en cours ne s'affichaient pas dans la gestion manuelle
+- **Problème 2** : L'application ne demandait plus le mot de passe pour l'accès admin
+- **Cause racine** : Tous les matchs étaient marqués comme `finished: true` dans la base de données
+- **Cause authentification** : Token JWT valide stocké dans localStorage
+
+### Solutions implémentées
+
+#### 1. Correction de l'authentification
+- **Fichier modifié** : `src/contexts/AuthContext.jsx`
+- **Modification** : Ajout d'une suppression forcée des tokens au chargement pour forcer la reconnexion
+- **Résultat** : L'application demande maintenant le mot de passe à chaque accès
+
+#### 2. Amélioration de l'affichage des matchs
+- **Fichier modifié** : `src/components/ManualMatchManagement.jsx`
+- **Améliorations** :
+  - Tri des matchs par heure
+  - Logs détaillés pour le débogage
+  - Statistiques visuelles (total, en cours, terminés)
+- **Fichier modifié** : `src/styles.css`
+- **Ajout** : Styles pour les statistiques des matchs
+
+#### 3. Scripts de diagnostic et correction
+- **Fichier créé** : `debug-issues.js` - Script de diagnostic complet
+- **Fichier créé** : `debug-issues.ps1` - Script PowerShell de diagnostic
+- **Fichier créé** : `reset-matches-status.js` - Script pour remettre les matchs en cours
+- **Fichier créé** : `fix-matches.ps1` - Script simple de correction
+
+### Instructions pour l'utilisateur
+
+#### Pour voir les matchs en cours :
+```powershell
+# Exécuter le script de correction
+.\fix-matches.ps1
+```
+
+#### Pour l'authentification :
+1. Ouvrir les outils de développement (F12)
+2. Aller dans Application > Local Storage > http://localhost:2000
+3. Supprimer 'tournoi_token' et 'tournoi_user'
+4. Rafraîchir la page (F5)
+
+## 2024-12-19 - Affichage des statuts de matchs dans la gestion manuelle
+
+### Problème identifié
+
+- **Demande utilisateur** : Dans la gestion manuelle des matchs, il fallait pouvoir voir les matchs attribués à un jour avec leur statut (terminé ou pas)
+- **Manque fonctionnel** : L'interface ne montrait pas clairement quels matchs étaient terminés vs en cours
+- **Impact** : Difficulté pour l'administrateur de distinguer les matchs modifiables des matchs verrouillés
+
+### Solution implémentée
+
+#### 1. **Modification du composant ManualMatchManagement.jsx**
+
+**Fichier modifié** : `src/components/ManualMatchManagement.jsx`
+**Section** : Affichage des matchs et gestion des statuts
+**Changements** :
+- Ajout de la fonction `getMatchStatus()` pour déterminer le statut d'un match
+- Modification de l'affichage des matchs pour inclure le statut visuel
+- Ajout de la protection contre la modification des matchs terminés
+- Amélioration de l'aperçu des matchs avec les statuts
+
+#### 2. **Fonctionnalités ajoutées**
+
+**Statut des matchs** :
+- ✅ **Match terminé** : Badge vert avec icône de validation et score affiché
+- ⏳ **Match en cours** : Badge orange avec icône d'attente
+- 🔒 **Protection** : Les matchs terminés ne peuvent plus être modifiés ou supprimés
+
+**Indicateurs visuels** :
+- Classe CSS `match-finished` pour les matchs terminés (opacité réduite, bordure verte)
+- Badges de statut avec icônes et couleurs distinctives
+- Affichage du score final pour les matchs terminés
+- Note "🔒 Verrouillé" pour les matchs non modifiables
+
+#### 3. **Styles CSS ajoutés**
+
+**Fichier modifié** : `src/styles.css`
+**Section** : Styles pour les statuts de matchs
+**Changements** :
+- Styles pour `.match-config.match-finished` (apparence des matchs terminés)
+- Styles pour `.match-status` avec variantes `.status-finished` et `.status-ongoing`
+- Styles pour l'aperçu des matchs avec statuts
+- Responsive design pour les nouveaux éléments
+
+#### 4. **Code ajouté**
+
+```javascript
+// Fonction pour obtenir le statut d'un match
+const getMatchStatus = (match) => {
+  if (match.finished) {
+    return {
+      text: 'Terminé',
+      icon: '✅',
+      className: 'status-finished',
+      description: `Score: ${match.team1_goals || 0}-${match.team2_goals || 0}`
+    };
+  } else {
+    return {
+      text: 'En cours',
+      icon: '⏳',
+      className: 'status-ongoing',
+      description: 'Match non terminé'
+    };
+  }
+};
+```
+
+### Fonctionnalités implémentées
+
+1. **Affichage des statuts**
+   - Badge visuel pour chaque match (terminé/en cours)
+   - Score affiché pour les matchs terminés
+   - Icônes distinctives (✅ pour terminé, ⏳ pour en cours)
+
+2. **Protection des matchs terminés**
+   - Désactivation des sélecteurs d'équipes pour les matchs terminés
+   - Désactivation du bouton de suppression
+   - Message explicatif "🔒 Verrouillé"
+
+3. **Interface améliorée**
+   - En-tête de match avec heure et statut
+   - Aperçu des matchs avec statuts
+   - Styles visuels cohérents
+
+4. **Responsive design**
+   - Adaptation mobile des nouveaux éléments
+   - Mise en page flexible pour les statuts
+
+### Tests de validation
+
+- ✅ Affichage correct des statuts de matchs
+- ✅ Protection contre la modification des matchs terminés
+- ✅ Styles CSS appliqués correctement
+- ✅ Responsive design fonctionnel
+- ✅ Aucune erreur de linting
+
+### Impact utilisateur
+
+- **Clarté** : L'administrateur voit immédiatement quels matchs sont terminés
+- **Sécurité** : Impossible de modifier accidentellement un match terminé
+- **Efficacité** : Interface plus intuitive et informative
+- **Cohérence** : Alignement avec le reste de l'application
+
+---
+
 ## 2024-12-19 - Implémentation du système Équipe I avec matchs du vendredi
 
 ### Problème identifié

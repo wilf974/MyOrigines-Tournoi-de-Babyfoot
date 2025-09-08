@@ -15,6 +15,12 @@ export function AuthProvider({ children }) {
    * Vérifie si l'utilisateur est connecté au chargement
    */
   useEffect(() => {
+    // TEMPORAIRE: Forcer la déconnexion pour résoudre le problème d'authentification
+    // Supprimer les tokens existants pour forcer la reconnexion
+    localStorage.removeItem('tournoi_token');
+    localStorage.removeItem('tournoi_user');
+    console.log('🔐 Tokens supprimés pour forcer la reconnexion');
+    
     // Vérifier si un token existe dans le localStorage
     const savedToken = localStorage.getItem('tournoi_token');
     const savedUser = localStorage.getItem('tournoi_user');
