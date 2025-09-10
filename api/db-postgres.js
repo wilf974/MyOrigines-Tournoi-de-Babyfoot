@@ -77,6 +77,7 @@ async function createTables(client) {
       team2_goals INTEGER DEFAULT 0,
       team2_gamelles INTEGER DEFAULT 0,
       finished BOOLEAN DEFAULT FALSE,
+      phase_number INTEGER DEFAULT 1,
       last_updated TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (equipe1_id) REFERENCES teams(id),
@@ -91,6 +92,31 @@ async function createTables(client) {
       username VARCHAR(50) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Table des phases de tournoi
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS tournament_phases (
+      id SERIAL PRIMARY KEY,
+      phase_number INTEGER NOT NULL,
+      phase_name VARCHAR(100) NOT NULL,
+      is_active BOOLEAN DEFAULT FALSE,
+      is_completed BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      completed_at TIMESTAMP
+    )
+  `);
+
+  // Table des qualifications d'équipes
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS team_qualifications (
+      id SERIAL PRIMARY KEY,
+      team_id VARCHAR(10) NOT NULL,
+      phase_number INTEGER NOT NULL,
+      qualified BOOLEAN DEFAULT FALSE,
+      qualification_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (team_id) REFERENCES teams(id)
     )
   `);
 
@@ -149,6 +175,20 @@ async function initializeDefaultData(client) {
 
     console.log('✅ Équipes par défaut créées (sans matchs automatiques)');
     console.log('ℹ️  Les matchs peuvent être générés manuellement via l\'interface admin');
+  }
+
+  // Initialiser la première phase du tournoi
+  const phaseCount = await client.query('SELECT COUNT(*) as count FROM tournament_phases');
+  
+  if (parseInt(phaseCount.rows[0].count) === 0) {
+    console.log('📝 Création de la première phase du tournoi...');
+    
+    await client.query(`
+      INSERT INTO tournament_phases (phase_number, phase_name, is_active, is_completed) 
+      VALUES (1, 'Phase de Pools - Semaine 1', TRUE, FALSE)
+    `);
+    
+    console.log('✅ Première phase du tournoi créée');
   }
 
   // Vérifier si un admin existe déjà

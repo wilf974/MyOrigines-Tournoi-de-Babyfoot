@@ -6,6 +6,7 @@ import ScoreControls from './ScoreControls';
 import Rankings from './Rankings';
 import TeamManagement from './TeamManagement';
 import MatchManagement from './MatchManagement';
+import PhaseManagementSimple from './PhaseManagementSimple';
 
 /**
  * Composant de la vue admin
@@ -28,6 +29,9 @@ function AdminView({ onBack }) {
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [activeTab, setActiveTab] = useState('matches');
+  
+  // Force l'inclusion du composant PhaseManagement dans le bundle
+  const phaseManagementRef = PhaseManagementSimple;
 
   /**
    * Met à jour le temps de dernière synchronisation
@@ -162,6 +166,12 @@ function AdminView({ onBack }) {
               Organisation des Matchs
             </button>
             <button 
+              className={`admin-tab ${activeTab === 'phases' ? 'active' : ''}`}
+              onClick={() => setActiveTab('phases')}
+            >
+              Gestion des Phases
+            </button>
+            <button 
               className={`admin-tab ${activeTab === 'teams' ? 'active' : ''}`}
               onClick={() => setActiveTab('teams')}
             >
@@ -223,6 +233,12 @@ function AdminView({ onBack }) {
           {activeTab === 'match-management' && (
             <div className="match-management-section">
               <MatchManagement />
+            </div>
+          )}
+
+          {activeTab === 'phases' && (
+            <div className="phases-management-section">
+              <PhaseManagementSimple />
             </div>
           )}
 

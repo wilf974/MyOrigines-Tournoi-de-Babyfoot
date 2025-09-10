@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './styles.css';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { TournamentProvider } from './contexts/TournamentContext';
+import { WebSocketProvider } from './contexts/WebSocketContext';
 import AdminView from './components/AdminView';
 import TeamManagement from './components/TeamManagement';
 import MatchManagement from './components/MatchManagement';
@@ -559,8 +560,7 @@ function AppContent() {
       const response = await fetch('/api/reset-all', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         }
       });
       
@@ -761,7 +761,7 @@ function AppContent() {
                       <div className="match-teams">
                         <span className="team-name">{match.team1_nom}</span>
                         <span className="match-score">
-                          {Math.max(0, match.team1_goals - match.team2_gamelles)} - {Math.max(0, match.team2_goals - match.team1_gamelles)}
+                          {match.team1_goals - match.team2_gamelles} - {match.team2_goals - match.team1_gamelles}
                         </span>
                         <span className="team-name">{match.team2_nom}</span>
                       </div>
@@ -827,7 +827,7 @@ function AppContent() {
                           </button>
                         </div>
                         <div className="score-final">
-                          Final: <span className="final-score">{Math.max(0, editingScores.team1_goals - editingScores.team2_gamelles)}</span>
+                          Final: <span className="final-score">{editingScores.team1_goals - editingScores.team2_gamelles}</span>
                         </div>
                       </div>
                       
@@ -858,7 +858,7 @@ function AppContent() {
                           </button>
                         </div>
                         <div className="score-final">
-                          Final: <span className="final-score">{Math.max(0, editingScores.team2_goals - editingScores.team1_gamelles)}</span>
+                          Final: <span className="final-score">{editingScores.team2_goals - editingScores.team1_gamelles}</span>
                         </div>
                       </div>
                     </div>
@@ -1094,7 +1094,7 @@ function AppContent() {
                               </div>
                               <div className="match-score">
                                 <span className="score">
-                                  {Math.max(0, currentMatch.team1_goals - currentMatch.team2_gamelles)} - {Math.max(0, currentMatch.team2_goals - currentMatch.team1_gamelles)}
+                                  {currentMatch.team1_goals - currentMatch.team2_gamelles} - {currentMatch.team2_goals - currentMatch.team1_gamelles}
                                 </span>
                                 <span className="match-status live">EN COURS</span>
                               </div>
@@ -1116,6 +1116,10 @@ function AppContent() {
                                 <div className="detail-item">
                                   <span className="detail-label">Gamelles:</span>
                                   <span className="detail-value">{currentMatch.team1_gamelles} - {currentMatch.team2_gamelles}</span>
+                                </div>
+                                <div className="detail-item">
+                                  <span className="detail-label">Score final:</span>
+                                  <span className="detail-value">{currentMatch.team1_goals - currentMatch.team2_gamelles} - {currentMatch.team2_goals - currentMatch.team1_gamelles}</span>
                                 </div>
                               </div>
                             )}
@@ -1146,8 +1150,8 @@ function AppContent() {
                           </div>
                           <div className="matches-list">
                             {recentMatches.map((match) => {
-                              const team1Final = Math.max(0, match.team1_goals - match.team2_gamelles);
-                              const team2Final = Math.max(0, match.team2_goals - match.team1_gamelles);
+                              const team1Final = match.team1_goals - match.team2_gamelles;
+                              const team2Final = match.team2_goals - match.team1_gamelles;
                               
                               return (
                                 <div key={match.id} className="match-item finished">
@@ -1346,11 +1350,13 @@ function AppContent() {
  */
 function App() {
   return (
-    <AuthProvider>
-      <TournamentProvider>
-        <AppContent />
-      </TournamentProvider>
-    </AuthProvider>
+    <WebSocketProvider>
+      <AuthProvider>
+        <TournamentProvider>
+          <AppContent />
+        </TournamentProvider>
+      </AuthProvider>
+    </WebSocketProvider>
   );
 }
 

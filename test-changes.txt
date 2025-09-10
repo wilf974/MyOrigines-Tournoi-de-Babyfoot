@@ -1,0 +1,21 @@
+Test des modifications - $(Get-Date)
+
+✅ Fichiers créés :
+- src/components/PhaseManagement.jsx
+- src/components/PhaseManagementSimple.jsx
+- api/phases.js
+- api/qualifications.js
+
+✅ Fichiers modifiés :
+- src/components/AdminView.jsx (ajout de l'onglet "Gestion des Phases")
+- server-postgres.js (ajout des routes API)
+- api/db-postgres.js (ajout des tables)
+
+✅ Fonctionnalités ajoutées :
+- Système de phases de tournoi
+- Gestion des qualifications
+- Interface de sélection des équipes qualifiées
+- Génération automatique des matchs pour les phases suivantes
+
+Le problème semble être que Docker ne se reconstruit pas correctement avec les nouvelles modifications.
+

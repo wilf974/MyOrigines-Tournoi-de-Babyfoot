@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useWebSocket } from './WebSocketContext';
 
 const TournamentContext = createContext();
 
@@ -7,6 +8,7 @@ const TournamentContext = createContext();
  * Gère les données des équipes, matchs et classements
  */
 export function TournamentProvider({ children }) {
+  const { socket, connected } = useWebSocket();
   const [teams, setTeams] = useState([]);
   const [matches, setMatches] = useState({});
   const [rankings, setRankings] = useState([]);
@@ -127,14 +129,15 @@ export function TournamentProvider({ children }) {
   /**
    * Réinitialise un match
    * @param {string} matchId - ID du match
-   * @param {Object} authHeaders - Headers d'authentification
    */
-  const resetMatch = async (matchId, authHeaders) => {
+  const resetMatch = async (matchId) => {
     try {
       setLoading(true);
       const response = await fetch(`/api/matches/${matchId}/reset`, {
         method: 'POST',
-        headers: authHeaders,
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) throw new Error('Erreur lors de la réinitialisation du match');
@@ -197,6 +200,58 @@ export function TournamentProvider({ children }) {
 
     initializeData();
   }, [currentDay]);
+
+  /**
+   * Écouteurs WebSocket pour les mises à jour en temps réel
+   */
+  useEffect(() => {
+    if (!socket) return;
+
+    // Écouter les mises à jour de matchs
+    socket.on('matchUpdated', (updatedMatch) => {
+      console.log('📡 Match mis à jour via WebSocket:', updatedMatch);
+      
+      // Mettre à jour le match dans l'état local
+      setMatches(prev => {
+        const newMatches = { ...prev };
+        if (newMatches[updatedMatch.jour]) {
+          newMatches[updatedMatch.jour] = newMatches[updatedMatch.jour].map(match =>
+            match.id === updatedMatch.id ? updatedMatch : match
+          );
+        }
+        return newMatches;
+      });
+    });
+
+    // Écouter les mises à jour du classement
+    socket.on('rankingsUpdated', (updatedRankings) => {
+      console.log('📡 Classement mis à jour via WebSocket:', updatedRankings);
+      setRankings(updatedRankings);
+    });
+
+    // Écouter la réinitialisation des matchs
+    socket.on('matchesReset', (resetMatches) => {
+      console.log('📡 Matchs réinitialisés via WebSocket:', resetMatches);
+      
+      // Organiser les matchs par jour
+      const matchesByDay = {};
+      resetMatches.forEach(match => {
+        if (!matchesByDay[match.jour]) {
+          matchesByDay[match.jour] = [];
+        }
+        matchesByDay[match.jour].push(match);
+      });
+      
+      setMatches(matchesByDay);
+    });
+
+    // Nettoyage des écouteurs
+    return () => {
+      socket.off('matchUpdated');
+      socket.off('rankingsUpdated');
+      socket.off('matchesReset');
+    };
+  }, [socket]);
 
   /**
    * Recharge les matchs quand le jour change

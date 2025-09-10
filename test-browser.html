@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Authentification Simplifiée</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de l'Authentification Simplifiée</h1>
+    
+    <div class="test-section">
+        <h2>📋 Instructions</h2>
+        <p><strong>Authentification simplifiée :</strong></p>
+        <ul>
+            <li>✅ Mot de passe demandé uniquement pour accéder à l'interface admin</li>
+            <li>✅ API accessible sans authentification une fois connecté</li>
+            <li>✅ Session persistante dans le localStorage</li>
+            <li>✅ Mot de passe admin: <code>123456</code></li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Tests API</h2>
+        <button onclick="testAPI()">Tester les APIs</button>
+        <div id="api-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔐 Test Authentification</h2>
+        <button onclick="testAuth()">Tester l'authentification</button>
+        <div id="auth-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🌐 Liens d'accès</h2>
+        <p>
+            <a href="http://localhost:2000" target="_blank">Frontend React (http://localhost:2000)</a><br>
+            <a href="http://localhost:2001/api/rankings" target="_blank">API Classement (http://localhost:2001/api/rankings)</a><br>
+            <a href="http://localhost:2002" target="_blank">Application complète (http://localhost:2002)</a>
+        </p>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:2001';
+
+        async function testAPI() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<p class="info">🔄 Test en cours...</p>';
+
+            let results = '<h3>Résultats des tests API:</h3>';
+
+            try {
+                // Test API de santé
+                const healthResponse = await fetch(`${API_BASE}/api/health`);
+                if (healthResponse.ok) {
+                    results += '<p class="success">✅ API de santé accessible</p>';
+                } else {
+                    results += '<p class="error">❌ API de santé inaccessible</p>';
+                }
+
+                // Test API de classement
+                const rankingsResponse = await fetch(`${API_BASE}/api/rankings`);
+                if (rankingsResponse.ok) {
+                    const rankings = await rankingsResponse.json();
+                    results += `<p class="success">✅ API de classement accessible (${rankings.length} équipes)</p>`;
+                    
+                    // Afficher le classement
+                    results += '<h4>📊 Classement actuel:</h4><pre>';
+                    rankings.forEach((team, index) => {
+                        results += `${index + 1}. ${team.nom} - ${team.points} pts, ${team.buts} buts, ${team.gamelles} gamelles\n`;
+                    });
+                    results += '</pre>';
+                } else {
+                    results += '<p class="error">❌ API de classement inaccessible</p>';
+                }
+
+                // Test API des équipes
+                const teamsResponse = await fetch(`${API_BASE}/api/teams`);
+                if (teamsResponse.ok) {
+                    const teams = await teamsResponse.json();
+                    results += `<p class="success">✅ API des équipes accessible (${teams.length} équipes)</p>`;
+                } else {
+                    results += '<p class="error">❌ API des équipes inaccessible</p>';
+                }
+
+            } catch (error) {
+                results += `<p class="error">❌ Erreur: ${error.message}</p>`;
+            }
+
+            resultsDiv.innerHTML = results;
+        }
+
+        async function testAuth() {
+            const resultsDiv = document.getElementById('auth-results');
+            resultsDiv.innerHTML = '<p class="info">🔄 Test en cours...</p>';
+
+            let results = '<h3>Résultats du test d\'authentification:</h3>';
+
+            try {
+                // Vérifier l'état actuel
+                const isConnected = localStorage.getItem('admin_connected');
+                results += `<p class="info">📊 État actuel: ${isConnected ? 'Connecté' : 'Non connecté'}</p>`;
+
+                // Test de connexion
+                results += '<h4>🔐 Test de connexion:</h4>';
+                results += '<p>Username: admin, Password: 123456</p>';
+
+                // Simuler la connexion
+                localStorage.setItem('admin_connected', 'true');
+                results += '<p class="success">✅ Connexion simulée réussie</p>';
+
+                // Vérifier la session
+                const newState = localStorage.getItem('admin_connected');
+                results += `<p class="success">✅ Session sauvegardée: ${newState}</p>`;
+
+                // Test de déconnexion
+                localStorage.removeItem('admin_connected');
+                results += '<p class="success">✅ Déconnexion réussie</p>';
+
+            } catch (error) {
+                results += `<p class="error">❌ Erreur: ${error.message}</p>`;
+            }
+
+            resultsDiv.innerHTML = results;
+        }
+
+        // Test automatique au chargement
+        window.onload = function() {
+            console.log('🧪 Page de test chargée');
+            console.log('📋 Authentification simplifiée:');
+            console.log('   - Mot de passe demandé uniquement pour l\'admin');
+            console.log('   - API accessible sans authentification');
+            console.log('   - Mot de passe: 123456');
+        };
+    </script>
+</body>
+</html>

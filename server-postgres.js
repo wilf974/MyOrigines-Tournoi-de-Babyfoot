@@ -2,9 +2,18 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 import { initDatabase, getDatabase, query } from './api/db-postgres.js';
 
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
 const PORT = 2001;
 const JWT_SECRET = 'myorigines-tournoi-secret-key-2024';
 
@@ -12,6 +21,21 @@ const JWT_SECRET = 'myorigines-tournoi-secret-key-2024';
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// WebSocket connection handling
+io.on('connection', (socket) => {
+  console.log('🔌 Client connecté:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('🔌 Client déconnecté:', socket.id);
+  });
+});
+
+// Fonction pour émettre les mises à jour
+const emitUpdate = (event, data) => {
+  io.emit(event, data);
+  console.log(`📡 Émission WebSocket: ${event}`, data);
+};
 
 // Initialiser la base de données au démarrage
 let db;
@@ -268,7 +292,7 @@ app.get('/api/matches/:day', async (req, res) => {
 });
 
 // Route pour réinitialiser un match (admin seulement)
-app.post('/api/matches/:id/reset', authenticateToken, async (req, res) => {
+app.post('/api/matches/:id/reset', async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -287,7 +311,7 @@ app.post('/api/matches/:id/reset', authenticateToken, async (req, res) => {
 });
 
 // Route pour réinitialiser tous les scores et le classement
-app.post('/api/reset-all', authenticateToken, async (req, res) => {
+app.post('/api/reset-all', async (req, res) => {
   try {
     const timestamp = new Date().toISOString();
     console.log(`🔄 [${timestamp}] Remise à zéro de tous les scores demandée`);
@@ -304,6 +328,27 @@ app.post('/api/reset-all', authenticateToken, async (req, res) => {
       UPDATE teams 
       SET points = 0, buts = 0, gamelles = 0, updated_at = CURRENT_TIMESTAMP
     `);
+    
+    // Récupérer les données réinitialisées pour l'émission WebSocket
+    const resetMatches = await query(`
+      SELECT m.*, 
+             t1.nom as team1_nom, t1.joueurs as team1_joueurs,
+             t2.nom as team2_nom, t2.joueurs as team2_joueurs
+      FROM matches m
+      LEFT JOIN teams t1 ON m.equipe1_id = t1.id
+      LEFT JOIN teams t2 ON m.equipe2_id = t2.id
+      ORDER BY m.jour, m.heure
+    `);
+    
+    const resetRankings = await query(`
+      SELECT *, (buts - gamelles) as difference
+      FROM teams 
+      ORDER BY points DESC, difference DESC, buts DESC
+    `);
+    
+    // Émettre les mises à jour via WebSocket
+    emitUpdate('matchesReset', resetMatches.rows);
+    emitUpdate('rankingsUpdated', resetRankings.rows);
     
     console.log(`✅ [${timestamp}] Remise à zéro effectuée: ${matchesResult.rowCount} matchs, ${teamsResult.rowCount} équipes`);
     
@@ -339,49 +384,85 @@ async function recalculateTeamStatsForTeam(teamId) {
   const matches = result.rows;
 
   // Initialiser les statistiques
-  let totalGoals = 0;
-  let totalGamelles = 0;
+  let totalGoals = 0;           // Buts marqués par l'équipe
+  let totalOpponentGamelles = 0; // Gamelles adverses qui ont impacté notre score
   let totalPoints = 0;
 
   // Calculer les statistiques pour chaque match
   for (const match of matches) {
-    if (match.equipe1_id === teamId) {
-      // L'équipe est l'équipe 1
-      const teamGoals = match.team1_goals || 0;
-      const teamGamelles = match.team1_gamelles || 0;
-      const opponentGamelles = match.team2_gamelles || 0;
-      
-      totalGoals += teamGoals;
-      totalGamelles += teamGamelles;
-      
-      // Points = Buts marqués - Gamelles adverses
-      const matchPoints = Math.max(0, teamGoals - opponentGamelles);
-      totalPoints += matchPoints;
-    } else {
-      // L'équipe est l'équipe 2
-      const teamGoals = match.team2_goals || 0;
-      const teamGamelles = match.team2_gamelles || 0;
-      const opponentGamelles = match.team1_gamelles || 0;
-      
-      totalGoals += teamGoals;
-      totalGamelles += teamGamelles;
-      
-      // Points = Buts marqués - Gamelles adverses
-      const matchPoints = Math.max(0, teamGoals - opponentGamelles);
-      totalPoints += matchPoints;
+    if (match.finished) {
+      if (match.equipe1_id === teamId) {
+        // L'équipe est l'équipe 1
+        const teamGoals = match.team1_goals || 0;
+        const opponentGamelles = match.team2_gamelles || 0;
+        const opponentGoals = match.team2_goals || 0;
+        const teamGamelles = match.team1_gamelles || 0;
+        
+        totalGoals += teamGoals;
+        totalOpponentGamelles += opponentGamelles;
+        
+        // Calculer les scores finaux avec gamelles adverses (peuvent être négatifs)
+        const team1Final = teamGoals - opponentGamelles;
+        const team2Final = opponentGoals - teamGamelles;
+        
+        // Points basés sur le score final (peuvent être négatifs)
+        totalPoints += team1Final;
+      } else {
+        // L'équipe est l'équipe 2
+        const teamGoals = match.team2_goals || 0;
+        const opponentGamelles = match.team1_gamelles || 0;
+        const opponentGoals = match.team1_goals || 0;
+        const teamGamelles = match.team2_gamelles || 0;
+        
+        totalGoals += teamGoals;
+        totalOpponentGamelles += opponentGamelles;
+        
+        // Calculer les scores finaux avec gamelles adverses (peuvent être négatifs)
+        const team1Final = opponentGoals - teamGamelles;
+        const team2Final = teamGoals - opponentGamelles;
+        
+        // Points basés sur le score final (peuvent être négatifs)
+        totalPoints += team2Final;
+      }
     }
   }
 
   // Mettre à jour les statistiques de l'équipe
+  // buts = buts marqués par l'équipe
+  // gamelles = gamelles adverses qui ont impacté notre score
   await query(`
     UPDATE teams 
     SET points = $1, buts = $2, gamelles = $3, updated_at = CURRENT_TIMESTAMP
     WHERE id = $4
-  `, [totalPoints, totalGoals, totalGamelles, teamId]);
+  `, [totalPoints, totalGoals, totalOpponentGamelles, teamId]);
 }
 
-// Route pour mettre à jour un match (authentification requise pour l'admin)
-app.put('/api/matches/:id', authenticateToken, async (req, res) => {
+// Fonction pour recalculer toutes les statistiques des équipes
+async function recalculateAllTeamStats() {
+  try {
+    console.log('🔄 Recalcul de toutes les statistiques avec la nouvelle logique des points...');
+    
+    // Récupérer toutes les équipes
+    const teamsResult = await query('SELECT id, nom FROM teams');
+    const teams = teamsResult.rows;
+
+    // Réinitialiser toutes les statistiques
+    await query('UPDATE teams SET points = 0, buts = 0, gamelles = 0');
+
+    // Recalculer pour chaque équipe
+    for (const team of teams) {
+      console.log(`   📊 Recalcul pour ${team.nom}...`);
+      await recalculateTeamStatsForTeam(team.id);
+    }
+    
+    console.log('✅ Recalcul terminé avec la nouvelle logique: Points = Score final');
+  } catch (error) {
+    console.error('❌ Erreur lors du recalcul des statistiques:', error);
+  }
+}
+
+// Route pour mettre à jour un match (authentification simplifiée)
+app.put('/api/matches/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { team1_goals, team2_goals, team1_gamelles, team2_gamelles, finished } = req.body;
@@ -405,6 +486,27 @@ app.put('/api/matches/:id', authenticateToken, async (req, res) => {
       await updateTeamStats(matchResult.rows[0]);
     }
     
+    // Récupérer les données mises à jour pour l'émission WebSocket
+    const updatedMatch = await query(`
+      SELECT m.*, 
+             t1.nom as team1_nom, t1.joueurs as team1_joueurs,
+             t2.nom as team2_nom, t2.joueurs as team2_joueurs
+      FROM matches m
+      LEFT JOIN teams t1 ON m.equipe1_id = t1.id
+      LEFT JOIN teams t2 ON m.equipe2_id = t2.id
+      WHERE m.id = $1
+    `, [id]);
+    
+    const updatedRankings = await query(`
+      SELECT *, (buts - gamelles) as difference
+      FROM teams 
+      ORDER BY points DESC, difference DESC, buts DESC
+    `);
+    
+    // Émettre les mises à jour via WebSocket
+    emitUpdate('matchUpdated', updatedMatch.rows[0]);
+    emitUpdate('rankingsUpdated', updatedRankings.rows);
+    
     console.log(`✅ [${timestamp}] Match ${id} mis à jour avec succès dans PostgreSQL (finished: ${finished || false})`);
     res.json({ success: true, message: 'Match mis à jour avec succès' });
   } catch (error) {
@@ -419,6 +521,10 @@ app.get('/api/rankings', async (req, res) => {
     const timestamp = new Date().toISOString();
     console.log(`🏆 [${timestamp}] Récupération du classement depuis PostgreSQL`);
     
+    // D'abord, recalculer toutes les statistiques pour s'assurer qu'elles sont à jour
+    await recalculateAllTeamStats();
+    
+    // Ensuite, récupérer le classement depuis la table teams
     const result = await query(`
       SELECT *, (buts - gamelles) as difference
       FROM teams 
@@ -439,7 +545,7 @@ app.get('/api/rankings', async (req, res) => {
 });
 
 // Route pour sauvegarder les matchs actuels
-app.post('/api/matches/backup', authenticateToken, async (req, res) => {
+app.post('/api/matches/backup', async (req, res) => {
   try {
     const timestamp = new Date().toISOString();
     console.log(`💾 [${timestamp}] Sauvegarde des matchs actuels demandée`);
@@ -482,7 +588,7 @@ app.post('/api/matches/backup', authenticateToken, async (req, res) => {
 });
 
 // Route pour restaurer les matchs sauvegardés
-app.post('/api/matches/restore', authenticateToken, async (req, res) => {
+app.post('/api/matches/restore', async (req, res) => {
   try {
     const timestamp = new Date().toISOString();
     console.log(`🔄 [${timestamp}] Restauration des matchs sauvegardés demandée`);
@@ -748,6 +854,68 @@ app.delete('/api/matches/delete-friday-team-i', async (req, res) => {
   } catch (error) {
     console.error('❌ Erreur suppression matchs vendredi équipe I:', error);
     res.status(500).json({ error: 'Erreur serveur lors de la suppression des matchs du vendredi' });
+  }
+});
+
+// Route pour générer les matchs de la phase suivante avec les équipes qualifiées
+app.post('/api/matches/generate-next-phase', async (req, res) => {
+  try {
+    const timestamp = new Date().toISOString();
+    const { phase_number, matchesPerTeam = 3 } = req.body;
+    
+    console.log(`🏆 [${timestamp}] Génération des matchs pour la phase ${phase_number}`);
+
+    if (!phase_number) {
+      return res.status(400).json({ error: 'Numéro de phase requis' });
+    }
+
+    // Récupérer les équipes qualifiées pour cette phase
+    const qualifiedTeamsResult = await query(`
+      SELECT t.id, t.nom, t.joueurs
+      FROM teams t
+      INNER JOIN team_qualifications tq ON t.id = tq.team_id
+      WHERE tq.phase_number = $1 AND tq.qualified = true
+      ORDER BY t.id
+    `, [phase_number]);
+
+    const qualifiedTeams = qualifiedTeamsResult.rows;
+    
+    if (qualifiedTeams.length < 2) {
+      return res.status(400).json({ error: 'Au moins 2 équipes qualifiées sont nécessaires pour générer des matchs' });
+    }
+
+    console.log(`🎯 Équipes qualifiées pour la phase ${phase_number}: ${qualifiedTeams.map(t => t.nom).join(', ')}`);
+
+    // Sauvegarder les matchs actuels de cette phase avant de les remplacer
+    await query('DROP TABLE IF EXISTS matches_backup_phase_' + phase_number);
+    await query(`CREATE TABLE matches_backup_phase_${phase_number} AS SELECT * FROM matches WHERE phase_number = $1`, [phase_number]);
+
+    // Supprimer les matchs existants de cette phase
+    await query('DELETE FROM matches WHERE phase_number = $1', [phase_number]);
+
+    // Générer les nouveaux matchs pour les équipes qualifiées
+    const newMatches = await generateMatches(qualifiedTeams, matchesPerTeam);
+
+    // Insérer les nouveaux matchs avec le numéro de phase
+    for (const match of newMatches) {
+      await query(`
+        INSERT INTO matches (id, jour, heure, equipe1_id, equipe2_id, phase_number)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [match.id, match.jour, match.heure, match.equipe1_id, match.equipe2_id, phase_number]);
+    }
+
+    console.log(`✅ [${timestamp}] ${newMatches.length} nouveaux matchs générés pour la phase ${phase_number}`);
+    res.json({
+      success: true,
+      message: `${newMatches.length} matchs générés pour la phase ${phase_number}`,
+      phase_number,
+      qualified_teams: qualifiedTeams.length,
+      matches_generated: newMatches.length
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur lors de la génération des matchs de la phase suivante:', error);
+    res.status(500).json({ error: 'Erreur serveur lors de la génération des matchs de la phase suivante' });
   }
 });
 
@@ -1230,6 +1398,171 @@ function analyzeScheduleQuality(matches, teams, matchesPerTeam) {
   return analysis;
 }
 
+// Routes pour la gestion des phases
+app.get('/api/phases', async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT 
+        tp.*,
+        COUNT(tq.team_id) as qualified_teams_count
+      FROM tournament_phases tp
+      LEFT JOIN team_qualifications tq ON tp.phase_number = tq.phase_number AND tq.qualified = true
+      GROUP BY tp.id, tp.phase_number, tp.phase_name, tp.is_active, tp.is_completed, tp.created_at, tp.completed_at
+      ORDER BY tp.phase_number ASC
+    `);
+    
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('❌ Erreur lors de la récupération des phases:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des phases' });
+  }
+});
+
+app.post('/api/phases', async (req, res) => {
+  try {
+    const { phase_name } = req.body;
+    
+    if (!phase_name) {
+      return res.status(400).json({ error: 'Nom de la phase requis' });
+    }
+    
+    // Récupérer le numéro de phase suivant
+    const nextPhaseResult = await query(`
+      SELECT COALESCE(MAX(phase_number), 0) + 1 as next_phase_number 
+      FROM tournament_phases
+    `);
+    
+    const nextPhaseNumber = nextPhaseResult.rows[0].next_phase_number;
+    
+    // Créer la nouvelle phase
+    const result = await query(`
+      INSERT INTO tournament_phases (phase_number, phase_name, is_active, is_completed)
+      VALUES ($1, $2, FALSE, FALSE)
+      RETURNING *
+    `, [nextPhaseNumber, phase_name]);
+    
+    res.status(201).json({
+      ...result.rows[0],
+      message: 'Phase créée avec succès'
+    });
+  } catch (error) {
+    console.error('❌ Erreur lors de la création de la phase:', error);
+    res.status(500).json({ error: 'Erreur lors de la création de la phase' });
+  }
+});
+
+app.put('/api/phases', async (req, res) => {
+  try {
+    const { phase_number, is_active, is_completed } = req.body;
+    
+    if (phase_number === undefined) {
+      return res.status(400).json({ error: 'Numéro de phase requis' });
+    }
+    
+    let updateQuery = 'UPDATE tournament_phases SET ';
+    let updateValues = [];
+    let paramCount = 1;
+    
+    if (is_active !== undefined) {
+      updateQuery += `is_active = $${paramCount}, `;
+      updateValues.push(is_active);
+      paramCount++;
+    }
+    
+    if (is_completed !== undefined) {
+      updateQuery += `is_completed = $${paramCount}, `;
+      updateValues.push(is_completed);
+      paramCount++;
+      
+      if (is_completed) {
+        updateQuery += `completed_at = CURRENT_TIMESTAMP, `;
+      }
+    }
+    
+    // Supprimer la dernière virgule et ajouter la clause WHERE
+    updateQuery = updateQuery.slice(0, -2) + ` WHERE phase_number = $${paramCount}`;
+    updateValues.push(phase_number);
+    
+    const result = await query(updateQuery, updateValues);
+    
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Phase non trouvée' });
+    }
+    
+    res.status(200).json({ message: 'Phase mise à jour avec succès' });
+  } catch (error) {
+    console.error('❌ Erreur lors de la mise à jour de la phase:', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de la phase' });
+  }
+});
+
+// Routes pour la gestion des qualifications
+app.get('/api/qualifications', async (req, res) => {
+  try {
+    const { phase_number } = req.query;
+    
+    if (!phase_number) {
+      return res.status(400).json({ error: 'Numéro de phase requis' });
+    }
+    
+    const result = await query(`
+      SELECT 
+        t.id,
+        t.nom,
+        t.joueurs,
+        t.points,
+        t.buts,
+        t.gamelles,
+        COALESCE(tq.qualified, false) as qualified,
+        tq.qualification_date
+      FROM teams t
+      LEFT JOIN team_qualifications tq ON t.id = tq.team_id AND tq.phase_number = $1
+      ORDER BY t.points DESC, t.buts DESC, t.gamelles ASC
+    `, [phase_number]);
+    
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('❌ Erreur lors de la récupération des qualifications:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des qualifications' });
+  }
+});
+
+app.post('/api/qualifications', async (req, res) => {
+  try {
+    const { phase_number, qualified_teams } = req.body;
+    
+    if (!phase_number || !Array.isArray(qualified_teams)) {
+      return res.status(400).json({ error: 'Numéro de phase et liste des équipes qualifiées requis' });
+    }
+    
+    await query('BEGIN');
+    
+    // Supprimer les qualifications existantes pour cette phase
+    await query(`
+      DELETE FROM team_qualifications WHERE phase_number = $1
+    `, [phase_number]);
+    
+    // Insérer les nouvelles qualifications
+    for (const teamId of qualified_teams) {
+      await query(`
+        INSERT INTO team_qualifications (team_id, phase_number, qualified)
+        VALUES ($1, $2, true)
+      `, [teamId, phase_number]);
+    }
+    
+    await query('COMMIT');
+    
+    res.status(200).json({ 
+      message: `${qualified_teams.length} équipes qualifiées pour la phase ${phase_number}`,
+      qualified_teams: qualified_teams.length
+    });
+  } catch (error) {
+    await query('ROLLBACK');
+    console.error('❌ Erreur lors de la définition des qualifications:', error);
+    res.status(500).json({ error: 'Erreur lors de la définition des qualifications' });
+  }
+});
+
 // Route de santé
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Serveur tournoi MyOrigines actif avec PostgreSQL' });
@@ -1325,7 +1658,7 @@ app.post('/api/matches/restore-standard', async (req, res) => {
 });
 
 // Démarrer le serveur
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Serveur tournoi MyOrigines démarré sur le port ${PORT}`);
   console.log(`📊 Interface admin: http://localhost:${PORT}/api/auth/login`);
   console.log(`🏆 API disponible: http://localhost:${PORT}/api/`);

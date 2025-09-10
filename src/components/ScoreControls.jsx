@@ -57,10 +57,10 @@ function ScoreControls({ match, onScoreUpdate, onMatchReset, onMatchSave, loadin
    * Calcule le score final d'une équipe
    * @param {number} goals - Nombre de buts
    * @param {number} opponentGamelles - Nombre de gamelles de l'adversaire
-   * @returns {number} Score final
+   * @returns {number} Score final (peut être négatif)
    */
   const calculateFinalScore = (goals, opponentGamelles) => {
-    return Math.max(0, goals - opponentGamelles);
+    return goals - opponentGamelles;
   };
 
   if (!match) {

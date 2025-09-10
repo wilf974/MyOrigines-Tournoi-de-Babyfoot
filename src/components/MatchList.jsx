@@ -25,8 +25,8 @@ function MatchList({ matches, selectedMatch, onMatchSelect, loading }) {
   return (
     <div id="schedule-display">
       {matches.map(match => {
-        const team1Final = Math.max(0, match.team1_goals - match.team2_gamelles);
-        const team2Final = Math.max(0, match.team2_goals - match.team1_gamelles);
+        const team1Final = match.team1_goals - match.team2_gamelles;
+        const team2Final = match.team2_goals - match.team1_gamelles;
         
         const scoreDisplay = match.finished 
           ? `${team1Final} - ${team2Final}`

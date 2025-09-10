@@ -13,80 +13,48 @@ export function AuthProvider({ children }) {
 
   /**
    * Vérifie si l'utilisateur est connecté au chargement
+   * Authentification simplifiée : mot de passe demandé une seule fois
    */
   useEffect(() => {
-    // TEMPORAIRE: Forcer la déconnexion pour résoudre le problème d'authentification
-    // Supprimer les tokens existants pour forcer la reconnexion
-    localStorage.removeItem('tournoi_token');
-    localStorage.removeItem('tournoi_user');
-    console.log('🔐 Tokens supprimés pour forcer la reconnexion');
+    // Vérifier si l'utilisateur est déjà connecté (session simple)
+    const isAdminConnected = localStorage.getItem('admin_connected');
     
-    // Vérifier si un token existe dans le localStorage
-    const savedToken = localStorage.getItem('tournoi_token');
-    const savedUser = localStorage.getItem('tournoi_user');
-    
-    if (savedToken && savedUser) {
-      try {
-        // Vérifier si le token est encore valide
-        const tokenData = JSON.parse(atob(savedToken.split('.')[1]));
-        const currentTime = Date.now() / 1000;
-        
-        if (tokenData.exp && tokenData.exp > currentTime) {
-          // Token valide, restaurer la session
-          setToken(savedToken);
-          setUser(JSON.parse(savedUser));
-          console.log('🔐 Session restaurée depuis le localStorage');
-        } else {
-          // Token expiré, nettoyer
-          localStorage.removeItem('tournoi_token');
-          localStorage.removeItem('tournoi_user');
-          console.log('🔐 Token expiré, reconnexion requise');
-        }
-      } catch (error) {
-        // Token invalide, nettoyer
-        localStorage.removeItem('tournoi_token');
-        localStorage.removeItem('tournoi_user');
-        console.log('🔐 Token invalide, reconnexion requise');
-      }
+    if (isAdminConnected === 'true') {
+      // Utilisateur connecté, restaurer la session
+      setUser({ username: 'admin', isAdmin: true });
+      setToken('admin_session'); // Token simple pour l'interface
+      console.log('🔐 Session admin restaurée');
     } else {
-      console.log('🔐 Aucune session sauvegardée, connexion requise');
+      console.log('🔐 Connexion admin requise');
     }
     
     setLoading(false);
   }, []);
 
   /**
-   * Connecte l'utilisateur
+   * Connecte l'utilisateur avec authentification simplifiée
    * @param {string} username - Nom d'utilisateur
    * @param {string} password - Mot de passe
    * @returns {Promise<boolean>} - Succès de la connexion
    */
   const login = async (username, password) => {
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Identifiants invalides');
+      // Authentification simple : vérifier le mot de passe admin
+      if (username === 'admin' && password === '123456') {
+        // Connexion réussie, sauvegarder la session
+        localStorage.setItem('admin_connected', 'true');
+        
+        setUser({ username: 'admin', isAdmin: true });
+        setToken('admin_session');
+        
+        console.log('🔐 Connexion admin réussie');
+        return true;
+      } else {
+        console.error('❌ Mot de passe incorrect');
+        return false;
       }
-
-      const data = await response.json();
-      
-      setToken(data.token);
-      setUser(data.user);
-      
-      // Sauvegarder en localStorage
-      localStorage.setItem('tournoi_token', data.token);
-      localStorage.setItem('tournoi_user', JSON.stringify(data.user));
-      
-      return true;
     } catch (error) {
-      console.error('Erreur de connexion:', error);
+      console.error('❌ Erreur de connexion:', error);
       return false;
     }
   };
@@ -97,8 +65,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem('tournoi_token');
-    localStorage.removeItem('tournoi_user');
+    localStorage.removeItem('admin_connected');
     console.log('🔐 Utilisateur déconnecté');
   };
 
@@ -111,41 +78,12 @@ export function AuthProvider({ children }) {
   };
 
   /**
-   * Obtient les headers d'authentification pour les requêtes API
-   * @returns {Object} - Headers avec token
+   * Obtient les headers pour les requêtes API (authentification simplifiée)
+   * @returns {Object} - Headers simples
    */
   const getAuthHeaders = () => {
-    if (!token) {
-      console.log('🔐 Aucun token disponible');
-      return {
-        'Content-Type': 'application/json',
-      };
-    }
-
-    // Vérifier si le token est encore valide
-    try {
-      const tokenData = JSON.parse(atob(token.split('.')[1]));
-      const currentTime = Date.now() / 1000;
-      
-      if (tokenData.exp && tokenData.exp <= currentTime) {
-        // Token expiré, déconnecter l'utilisateur
-        console.log('🔐 Token expiré lors de la requête, déconnexion automatique');
-        logout();
-        return {
-          'Content-Type': 'application/json',
-        };
-      }
-    } catch (error) {
-      // Token invalide, déconnecter l'utilisateur
-      console.log('🔐 Token invalide lors de la requête, déconnexion automatique');
-      logout();
-      return {
-        'Content-Type': 'application/json',
-      };
-    }
-
+    // Authentification simplifiée : pas de token requis pour l'API
     return {
-      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
     };
   };
